@@ -1,0 +1,19 @@
+{
+  "name": "Update-Berater",
+  "description": "Liest die Release Notes der offenen Updates, prüft sie gegen deine Integrationen und empfiehlt: einspielen, vorher prüfen oder abwarten.",
+  "icon": "mdi:update",
+  "enabled": true,
+  "schedule": ["Fr 18:00"],
+  "precheck": "node ha.mjs updates pending --count",
+  "allowedTools": [
+    "Bash(node ha.mjs updates pending)",
+    "Bash(node ha.mjs updates notes:*)",
+    "Bash(node ha.mjs updates report)",
+    "Bash(node ha.mjs states:*)",
+    "WebFetch(domain:www.home-assistant.io)",
+    "WebFetch(domain:github.com)",
+    "Edit(/{{DATA}}/report.json)",
+    "Read(/{{DATA}}/report.json)"
+  ],
+  "maxTurns": 30
+}

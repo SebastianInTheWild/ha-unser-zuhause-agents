@@ -22,6 +22,9 @@ Ein Home-Assistant-Add-on, in dem KI-Agenten (Claude Code) nach Zeitplan für Ho
 | `automationen` | 08:00 | Gibt neuen Automationen einen sprechenden Namen, eine Beschreibung, Labels und eine Kategorie. Danach kommt ein Push mit der Übersicht. |
 | `log-detektiv` | täglich 07:30 | Liest neue Fehler im HA-Protokoll, gruppiert sie, erklärt Ursache und Lösung, merkt sich harmlose Meldungen. Push bei wichtigen Funden und Dashboard **Log-Detektiv** (Befunde, Verlauf, harmlose Meldungen). |
 | `energie-coach` | So 18:00 | Wertet die letzten 7 Tage aus (PV, Akku, Netz, Geräte, Laufzeiten von Trockner & Co.) und schickt 1–2 konkrete Tipps per Push. Erkennt Datenlücken. |
+| `batterie-waechter` | So 10:00 | Meldet Batterien, die leer sind oder laut Verlauf in den nächsten 30 Tagen leer werden, mit Raum und Batterietyp (aus [Battery Notes](https://github.com/andrew-codechimp/HA-Battery-Notes)), und setzt die passenden Batterien auf die Einkaufsliste (`BATTERY_TODO`). Akkus (Handy, Hausspeicher, Mäher) erkennt er am Verlauf und lässt sie aus. |
+| `update-berater` | Fr 18:00 | Liest die Release Notes der offenen Updates (Core, Add-ons, HACS, Firmware), prüft Breaking Changes gegen deine Integrationen und empfiehlt per Push: ✅ sicher, ⚠️ vorher prüfen oder ⏸ abwarten. Er installiert nichts. |
+| `geraete-waechter` | täglich 08:30 | Findet Geräte, die offline sind, in 7 Tagen mehrfach wegfielen oder ein schwaches Zigbee-Signal haben, erkennt Muster (gleiche Bridge, gleiche Uhrzeit, leere Batterie) und schlägt Abhilfe vor. Absichtlich abgeschaltete Geräte ignoriert er künftig. |
 | `automations-doktor` | Sa 09:00 | Prüft alle Automationen (fehlende/ausgefallene Entitäten, Fehler in Läufen, Stillstand) und schreibt den Befund ins Dashboard **Automations-Doktor**, ohne Push. |
 | `doktor-umsetzer` | alle 5 min | Übernimmt Empfehlungen, die du im Dashboard **Automations-Doktor** per Knopf freigibst, in die Automation (mit Sicherung) oder lehnt sie begründet ab, und schickt das Ergebnis per Push. Ohne Freigabe startet Claude nicht. |
 
@@ -96,10 +99,23 @@ Im Tab *Konfiguration*, mit Erklärung auf Deutsch und Englisch:
 | `DOCTOR_DASHBOARD` | `automations-doktor` | Adresse des Dashboards „Automations-Doktor“ |
 | `DOCTOR_QUIET_DAYS` | `60` | so viele Tage ohne Auslösen gelten beim Doktor als Stillstand |
 | `DOCTOR_TODO_NAME` | `Doktor-Freigaben` | Name der To-do-Liste für Freigaben |
+| `BATTERY_WARN` | `20` | Batterie-Wächter: ab diesem Stand in % gilt eine Batterie als schwach |
+| `BATTERY_HORIZON_DAYS` | `30` | Batterie-Wächter: meldet Batterien, die laut Prognose in so vielen Tagen leer sind |
+| `BATTERY_REMIND_DAYS` | `14` | Batterie-Wächter: gemeldete Batterien erst nach so vielen Tagen erneut melden |
+| `BATTERY_TODO` | `todo.einkaufsliste` (in seiner `agent.json`) | Liste für die Batterien zum Kaufen; leer = keine Liste |
+| `BATTERY_EXCLUDE` | – | Batterie-Sensoren, die nicht zählen, z. B. `sensor.auto_battery,sensor.garten_*` |
+| `BATTERY_EXCLUDE_PLATFORMS` | `mobile_app` | Integrationen, deren Geräte nicht zählen (Handys) |
+| `DEVICE_GRACE_MIN` | `60` | Geräte-Wächter: erst nach so vielen Minuten offline zählt ein Gerät |
+| `DEVICE_FLAPS` | `3` | Geräte-Wächter: so viele Ausfälle in 7 Tagen gelten als „fällt immer wieder weg“ |
+| `DEVICE_LQI_WEAK` | `40` | Geräte-Wächter: Zigbee-Linkqualität bis zu diesem Wert gilt als schwach |
+| `DEVICE_REMIND_DAYS` | `7` | Geräte-Wächter: bekannte Probleme erst nach so vielen Tagen erneut melden |
+| `UPDATE_NOTES_MAX` | `6000` | Update-Berater: Zeichen Release Notes je Update in der Übersicht |
 | `CONTROL` | an | `off` = keine Status-Sensoren |
 | `CONTROL_PREFIX` | `Agent` | Namensanfang der Status-Sensoren |
 
 Der Energie-Coach liest zusätzlich die Laufzeiten von Geräten ohne eigenen Zähler. Welche das sind, steht als `ENERGY_ACTIVITY` in seiner `agent.json`.
+
+Ein Gerät, das der Geräte-Wächter ignoriert, nimmst du im Terminal-Add-on (Schutzmodus aus) so wieder auf: `docker exec -e AGENT_ID=geraete-waechter addon_9df7a0b9_unser_zuhause_agents node /app/ha.mjs devices unignore <device_id>`. Die Liste zeigt derselbe Befehl mit `devices ignored`.
 
 ### Bedienen
 

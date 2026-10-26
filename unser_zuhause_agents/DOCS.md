@@ -1,6 +1,6 @@
 # Unser Zuhause – Agenten
 
-KI-Agenten (Claude Code), die nach Zeitplan für Home Assistant arbeiten: Automationen sortieren, Fehlerprotokoll auswerten, Energie-Tipps, Automations-Doktor.
+KI-Agenten (Claude Code), die nach Zeitplan für Home Assistant arbeiten: Automationen sortieren, Fehlerprotokoll auswerten, Energie-Tipps, Automations-Doktor, Batterie-Wächter, Update-Berater und Geräte-Wächter.
 
 ## Einrichten
 

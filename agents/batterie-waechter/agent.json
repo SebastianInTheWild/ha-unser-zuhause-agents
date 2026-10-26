@@ -1,0 +1,16 @@
+{
+  "name": "Batterie-Wächter",
+  "description": "Meldet Batterien, die bald leer sind, mit Typ und Raum, und setzt die passenden Batterien auf die Einkaufsliste.",
+  "icon": "mdi:battery-alert-variant-outline",
+  "enabled": true,
+  "schedule": ["So 10:00"],
+  "precheck": "node ha.mjs batteries status --count",
+  "env": { "BATTERY_TODO": "todo.einkaufsliste" },
+  "allowedTools": [
+    "Bash(node ha.mjs batteries status)",
+    "Bash(node ha.mjs batteries report)",
+    "Edit(/{{DATA}}/report.json)",
+    "Read(/{{DATA}}/report.json)"
+  ],
+  "maxTurns": 12
+}

@@ -16,6 +16,14 @@
 //   node ha.mjs fixes apply <id>              Freigegebene Empfehlung anwenden (mit Sicherung; DRY=1: nur zeigen)
 //   node ha.mjs fixes reject <id> "<grund>"   Freigegebene Empfehlung nicht umsetzen
 //   node ha.mjs fixes finish                  Push mit den Ergebnissen dieses Laufs
+//   node ha.mjs batteries status [--count]    Batteriestände mit Prognose und Typ (Batterie-Wächter)
+//   node ha.mjs batteries report              Bericht aus <AGENT_DATA>/report.json schicken, Batterien auf die Einkaufsliste
+//   node ha.mjs updates pending [--count]     Offene Updates mit Release Notes und Integrationen (Update-Berater)
+//   node ha.mjs updates notes <update.id>     Vollständige Release Notes eines Updates
+//   node ha.mjs updates report                Empfehlung aus <AGENT_DATA>/report.json schicken
+//   node ha.mjs devices check [--count]       Geräte offline, mit Aussetzern oder schwachem Signal (Geräte-Wächter)
+//   node ha.mjs devices report                Bericht aus <AGENT_DATA>/report.json schicken, Geräte ignorieren
+//   node ha.mjs devices ignored|unignore <id> Ignorierte Geräte anzeigen bzw. wieder aufnehmen
 
 import { mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
@@ -24,6 +32,9 @@ import { doctor } from "./lib/doctor.mjs";
 import { energy } from "./lib/energy.mjs";
 import { logs } from "./lib/logs.mjs";
 import { fixes } from "./lib/fixes.mjs";
+import { batteries } from "./lib/batteries.mjs";
+import { updates } from "./lib/updates.mjs";
+import { devicesCmd } from "./lib/devices.mjs";
 
 const DRY = process.env.DRY === "1";
 const DATA = process.env.AGENT_DATA || join(process.env.DATA_DIR || "/data", "automationen");
@@ -333,10 +344,13 @@ async function apply(call, reg, items, create) {
 async function main() {
   const [cmd, sub, ...rest_] = process.argv.slice(2);
   if (cmd === "automations") return automations(sub, rest_);
-  if (cmd === "logs" || cmd === "energy" || cmd === "fixes") {
+  const tools = { logs, energy, fixes, batteries, updates, devices: devicesCmd };
+  // Ignorierliste des Geräte-Wächters: nur die Merkliste, ohne Verbindung zu Home Assistant
+  if (cmd === "devices" && (sub === "ignored" || sub === "unignore")) return devicesCmd(null, sub, rest_);
+  if (tools[cmd]) {
     const call = await connect();
     try {
-      return await (cmd === "logs" ? logs(call, sub, rest_) : cmd === "fixes" ? fixes(call, sub, rest_) : energy(call, sub, rest_));
+      return await tools[cmd](call, sub, rest_);
     } finally {
       call.close();
     }
@@ -353,7 +367,7 @@ async function main() {
     call.close();
     return out({ ok: true });
   }
-  console.error("Befehle: states | notify | automations context|pending|apply|init|health|report | logs pending|harmless|report | energy week|report | fixes pending|apply|reject|finish");
+  console.error("Befehle: states | notify | automations context|pending|apply|init|health|report | logs pending|harmless|report | energy week|report | fixes pending|apply|reject|finish | batteries status|report | updates pending|notes|report | devices check|report|ignored|unignore");
   process.exit(2);
 }
 

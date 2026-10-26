@@ -16,7 +16,6 @@ init: false
 homeassistant_api: true
 # Weboberfläche „Zeitplan“ in der Seitenleiste
 ingress: true
-boot: auto
 ingress_port: 8080
 panel_icon: mdi:robot-outline
 panel_title: Agenten

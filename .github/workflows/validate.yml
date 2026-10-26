@@ -4,34 +4,86 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+  # Wöchentlich, damit neue Versionen von Claude Code, Node oder dem Add-on-Linter auffallen
+  schedule:
+    - cron: "17 5 * * 1"
 
 jobs:
   addon-linter:
+    name: Add-on-Konfiguration (Linter)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: frenck/action-addon-linter@v2
         with:
           path: ./unser_zuhause_agents
-  tests:
+
+  consistency:
+    name: Übersetzungen, Changelog, Agenten
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: pip install pyyaml
+      - run: python3 .github/scripts/check_addon.py
+
+  tests:
+    name: Node (Syntax, Tests, Zeitplan, Einstellungen)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Syntax
+        run: for f in app/*.mjs app/lib/*.mjs; do node --check "$f"; done
+      - name: Tests
         run: |
-          for f in app/*.mjs app/lib/*.mjs; do node --check "$f"; done
-          sh -n app/start.sh
+          shopt -s nullglob
+          files=(tests/*.test.mjs)
+          if [ ${#files[@]} -gt 0 ]; then node --test "${files[@]}"; else echo "keine Tests"; fi
       - name: Agenten und Zeitplan
-        run: |
-          for f in agents/*/agent.json; do node -e 'JSON.parse(require("fs").readFileSync(process.argv[1]))' "$f"; done
-          AGENTS_DIR=agents DATA_DIR="$RUNNER_TEMP/data" SCHEDULE_FILE=zeitplan.conf node app/scheduler.mjs list
+        run: AGENTS_DIR=agents DATA_DIR="$RUNNER_TEMP/data" SCHEDULE_FILE=zeitplan.conf node app/scheduler.mjs list
       - name: Einstellungen des Add-ons
         run: |
+          set -o pipefail
           echo '{"claude_code_oauth_token":"x","notify_persons":["person.a"],"skip_label":"Test","env":["DRY=1"]}' > "$RUNNER_TEMP/options.json"
           out=$(node app/addon-env.mjs "$RUNNER_TEMP/options.json")
           echo "$out"
           echo "$out" | grep -q "^export NOTIFY_PERSONS='person.a'$"
           echo "$out" | grep -q "^export DRY='1'$"
+
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: shellcheck -s sh app/start.sh
+
+  docker:
+    name: Image bauen und starten (ohne Push)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Bauen
+        run: docker build --build-arg VERSION=ci -t agents-ci .
+      - name: Starten wie im Add-on
+        run: |
+          set -o pipefail
+          dir="$RUNNER_TEMP/addon"
+          mkdir -p "$dir/data" "$dir/config"
+          echo '{"claude_code_oauth_token":"x","notify_persons":[],"skip_label":"Test","env":[]}' > "$dir/data/options.json"
+          docker run -d --name agents-ci -e SUPERVISOR_TOKEN=ci -v "$dir/data:/data" -v "$dir/config:/config" agents-ci
+          for _ in $(seq 1 30); do
+            grep -q "Zeitplan läuft" <<<"$(docker logs agents-ci 2>&1)" && break
+            sleep 2
+          done
+          docker logs agents-ci 2>&1 | tee "$dir/log"
+          docker rm -f agents-ci >/dev/null
+          grep -q "Add-on: Agenten in /config/agents" "$dir/log"
+          grep -q "Claude Code [0-9]" "$dir/log"
+          grep -q "Version ci · Zeitplan läuft" "$dir/log"
+          test -f "$dir/config/agents/automationen/agent.json"
+          test -f "$dir/data/zeitplan.conf"

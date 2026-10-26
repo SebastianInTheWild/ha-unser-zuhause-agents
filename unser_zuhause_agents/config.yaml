@@ -5,6 +5,8 @@ version: "1.2.0"
 slug: unser_zuhause_agents
 description: KI-Agenten (Claude Code), die nach Zeitplan für Home Assistant arbeiten
 url: https://github.com/SebastianInTheWild/ha-unser-zuhause-agents
+# Labels und Kategorien (Automationen sortieren, Doktor) gibt es erst ab 2024.4
+homeassistant: 2024.4.0
 arch:
   - amd64
   - aarch64

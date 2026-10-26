@@ -1,7 +1,7 @@
 # Unser Zuhause – Agenten
 
-[![Validate](https://github.com/SebastianInTheWild/ha-unser-zuhause-agents/actions/workflows/validate.yml/badge.svg)](https://github.com/SebastianInTheWild/ha-unser-zuhause-agents/actions/workflows/validate.yml)
-[![Add-on-Image](https://github.com/SebastianInTheWild/ha-unser-zuhause-agents/actions/workflows/addon.yml/badge.svg)](https://github.com/SebastianInTheWild/ha-unser-zuhause-agents/actions/workflows/addon.yml)
+[![Validate](https://github.com/SebastianInTheWild/ha-unser-zuhause-agents/actions/workflows/validate.yml/badge.svg?branch=main)](https://github.com/SebastianInTheWild/ha-unser-zuhause-agents/actions/workflows/validate.yml)
+[![Add-on-Image](https://github.com/SebastianInTheWild/ha-unser-zuhause-agents/actions/workflows/addon.yml/badge.svg?branch=main)](https://github.com/SebastianInTheWild/ha-unser-zuhause-agents/actions/workflows/addon.yml)
 
 Ein Home-Assistant-Add-on, in dem KI-Agenten (Claude Code) nach Zeitplan für Home Assistant arbeiten. Jeder Agent ist ein Ordner unter `agents/` mit einer Anweisung und einem Zeitplan. Neue Agenten legst du als neuen Ordner an, ohne das Add-on neu zu bauen.
 

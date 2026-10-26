@@ -18,7 +18,7 @@ export function loadAgent(id) {
   return { id, dir, ...cfg, promptText: prompt };
 }
 
-// Status je Agent für das Dashboard „Agenten“: status.json (läuft gerade), last-run.json (letzter echter Lauf),
+// Status je Agent für Weboberfläche und Sensoren: status.json (läuft gerade), last-run.json (letzter echter Lauf),
 // last-check.json (letzte Vorprüfung ohne Arbeit bei quiet-Agenten)
 const statusFile = (id, name) => join(DATA_DIR, id, name);
 export const readStatus = (id, name) => {

@@ -20,9 +20,12 @@ KI-Agenten (Claude Code), die nach Zeitplan für Home Assistant arbeiten: Automa
 | `ha_token` | nur falls ein Aufruf über den Supervisor abgelehnt wird: eigener langlebiger Zugriffstoken |
 | `env` | weitere Variablen als `NAME=Wert`, z. B. `LOG_LEVELS=error,warning` oder `CONTROL=off` |
 
-## Zeitplan
+## Weboberfläche „Agenten“
 
-Wann welcher Agent läuft, stellst du in der Seitenleiste unter **Agenten** ein (Weboberfläche „Zeitplan“): feste Zeiten, Wochentage, Abstände oder pausiert. Änderungen gelten nach spätestens 30 Sekunden, ohne Neustart.
+Im Add-on unter *Info* **In Seitenleiste anzeigen** einschalten. Unter **Agenten** siehst du dann je Agent Status, nächsten und letzten Lauf und kannst
+
+- den Zeitplan einstellen: feste Zeiten, Wochentage, Abstände oder pausiert. Änderungen gelten nach spätestens 30 Sekunden, ohne Neustart.
+- mit **Jetzt starten** einen Agenten sofort laufen lassen. Er startet innerhalb von etwa 30 Sekunden, sobald kein anderer Agent läuft.
 
 ## Eigene Agenten
 
@@ -36,6 +39,6 @@ Merklisten, Sicherungen und Logs liegen in den Add-on-Daten und sind in den HA-B
 
 Merklisten, Sicherungen und Zeitplan aus einer bestehenden Installation: den Inhalt des Datenordners (ein Unterordner je Agent) und die `zeitplan.conf` nach `/addon_configs/<slug>_unser_zuhause_agents/import/` kopieren und das Add-on (neu) starten. Es übernimmt alles einmalig und löscht `import/` danach. Im Protokoll steht dann „Import: alte Daten … übernommen“.
 
-## Dashboard „Agenten“
+## Status-Sensoren
 
-Das Add-on legt das Dashboard **Agenten** mit Status-Sensoren (`sensor.agent_<id>`) und Knöpfen **Jetzt starten** an.
+Je Agent schreibt das Add-on einen Sensor `sensor.agent_<id>` (läuft, wartet, erfolgreich, fehlgeschlagen, nichts zu tun) mit Zeitplan, nächstem und letztem Lauf als Attributen, z. B. für Automationen. `CONTROL=off` in `env` schaltet sie ab.

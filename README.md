@@ -36,9 +36,12 @@ Für amd64 und aarch64 (Home Assistant OS oder Supervised).
 
 Ein HA-Token ist nicht nötig, das Add-on nutzt den Supervisor. Alle Einstellungen stehen in [`unser_zuhause_agents/DOCS.md`](unser_zuhause_agents/DOCS.md).
 
-## Zeitplan
+## Weboberfläche „Agenten“
 
-Die Weboberfläche „Zeitplan“ erscheint als **Agenten** in der Seitenleiste (Ingress, nur für Admins). Dort stellst du je Agent feste Zeiten, Wochentage oder Abstände ein oder pausierst ihn. Änderungen gelten nach spätestens 30 Sekunden, ohne Neustart. Eine neu eingetragene Zeit, die heute schon vorbei ist, gilt erst ab morgen. Verpasst das Add-on eine Uhrzeit, weil es aus war, holt es den Lauf am selben Tag nach.
+Die Weboberfläche erscheint als **Agenten** in der Seitenleiste (im Add-on unter *Info* **In Seitenleiste anzeigen** einschalten, nur für Admins). Sie zeigt je Agent Status, Zeitplan, nächsten und letzten Lauf.
+
+- **Zeitplan:** feste Zeiten, Wochentage oder Abstände einstellen oder pausieren. Änderungen gelten nach spätestens 30 Sekunden, ohne Neustart. Eine neu eingetragene Zeit, die heute schon vorbei ist, gilt erst ab morgen. Verpasst das Add-on eine Uhrzeit, weil es aus war, holt es den Lauf am selben Tag nach.
+- **Jetzt starten:** reiht den Agenten ein (mit Rückfrage). Er startet innerhalb von etwa 30 Sekunden, sobald kein anderer Agent läuft. Die Vorprüfung gilt auch hier: Gibt es nichts zu tun, startet Claude nicht. Auch pausierte Agenten lassen sich so starten, Agenten mit `"manual": false` nicht.
 
 ## Daten übernehmen
 
@@ -46,25 +49,18 @@ Merklisten, Sicherungen und Zeitplan aus einer bestehenden Installation übernim
 
 ## Bedienen
 
-- **Sofort starten:** Knopf **Jetzt starten** im Dashboard „Agenten“ (siehe unten).
+- **Sofort starten:** Knopf **Jetzt starten** in der Weboberfläche.
 - **Protokoll:** Tab *Protokoll* des Add-ons, dazu Logs je Agent und Tag in den Add-on-Daten (`/data/<agent>/logs`).
 - **Nur ausprobieren:** In der Option `env` `DRY=1` setzen, dann zeigen die Agenten nur, was sie ändern würden. Zum Ausprobieren an bestehenden Automationen zusätzlich `FORCE_IDS=automation.a,automation.b`.
 
-## Dashboard „Agenten“ in Home Assistant
+## Status-Sensoren in Home Assistant
 
-Der Scheduler legt in Home Assistant selbst ein Dashboard **Agenten** an (nur für Admins, in der Seitenleiste). Es zeigt je Agent:
+Je Agent schreibt das Add-on einen Sensor `sensor.agent_<id>` nach Home Assistant, z. B. für Automationen („Log-Detektiv fehlgeschlagen → Push“) oder eigene Dashboards:
 
-- **Status** als Sensor `sensor.agent_<id>`: läuft, wartet, erfolgreich, fehlgeschlagen, nichts zu tun
-- Zeitplan, nächster Lauf, letzter Lauf mit Ergebnis, Dauer und Auslöser (Zeitplan oder von Hand), dazu die letzten Protokollzeilen
-- Knopf **Jetzt starten** (`input_button` „Agent <Name>“, mit Rückfrage)
+- **Zustand:** läuft, wartet, erfolgreich, fehlgeschlagen, nichts zu tun, noch nie gelaufen
+- **Attribute:** `schedule`, `next_run`, `running_since`, `last_run`, `last_result`, `last_by` (Zeitplan oder von Hand), `last_note`, `last_duration`, `last_check`, `log` (letzte Protokollzeilen)
 
-Ein Druck auf den Knopf reiht den Agenten ein. Er startet innerhalb von etwa 30 Sekunden, sobald kein anderer Agent läuft. Die Vorprüfung gilt auch hier: Gibt es nichts zu tun, startet Claude nicht.
-
-- Es gibt keinen offenen Port. Das Add-on fragt Home Assistant über den Supervisor ab.
-- Agenten mit `"manual": false` in der `agent.json` bekommen keinen Knopf, ihr Status wird trotzdem angezeigt.
-- Auch pausierte Agenten (in der Weboberfläche) lassen sich von Hand starten.
-- Das Dashboard wird bei neuen oder geänderten Agenten neu geschrieben. Eigene Änderungen daran gehen dabei verloren.
-- In der Option `env`: `CONTROL=off` schaltet die Steuerung ab. `CONTROL_DASHBOARD` ändert die Adresse (Standard `dashboard-agenten`, Home Assistant verlangt einen Bindestrich).
+Die Sensoren sind nicht im Entitätenregister, sie verschwinden bei einem HA-Neustart kurz und werden innerhalb von 15 Sekunden neu geschrieben. In der Option `env` schaltet `CONTROL=off` sie ab.
 
 ## Eigenen Agenten anlegen
 
@@ -82,8 +78,7 @@ Ein Druck auf den Knopf reiht den Agenten ein. Er startet innerhalb von etwa 30 
 | `init` | Befehl, der nur beim allerersten Lauf ausgeführt wird |
 | `allowedTools` | Was der Agent darf, z. B. `Bash(node ha.mjs states:*)`. Alles andere ist gesperrt. |
 | `env` | zusätzliche Umgebungsvariablen nur für diesen Agenten |
-| `manual` | `false` = kein Knopf „Jetzt starten“ im Dashboard „Agenten“ |
-| `icon` | Symbol im Dashboard „Agenten“, z. B. `mdi:stethoscope` |
+| `manual` | `false` = kein Knopf „Jetzt starten“ |
 | `maxTurns`, `model` | Grenzen für Claude |
 
 Das Werkzeug `app/ha.mjs` kann Zustände lesen (`states`), Pushs schicken (`notify`) und Automationen sortieren (`automations …`). Für neue Aufgaben bekommt es neue Befehle, damit jeder Agent genau das darf, was er braucht, und nicht mehr.

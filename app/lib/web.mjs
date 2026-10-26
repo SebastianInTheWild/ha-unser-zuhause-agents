@@ -1,5 +1,5 @@
 // Weboberfläche „Zeitplan“: zeigt alle Agenten aus agents/ mit Zeitplan, letztem und nächstem Lauf
-// und schreibt Änderungen nach zeitplan.conf (Kommentare und Reihenfolge bleiben erhalten).
+// und schreibt Änderungen nach zeitplan.conf (Kommentare und Reihenfolge bleiben erhalten). Knopf „Jetzt starten“ je Agent.
 // Der Zeitplan liest die Datei alle 30 s – ein Neustart ist nicht nötig.
 // Port: WEB_PORT (Standard 8080, „aus“ = keine Oberfläche). Passwort: WEB_PASSWORT (optional, HTTP-Anmeldung).
 // Autor: SebastianInTheWild · MIT-Lizenz
@@ -65,6 +65,11 @@ function writeEntry(id, value) {
 
 // ---------- Daten für die Oberfläche ----------
 
+// Von Hand angeforderte Agenten (Knopf „Jetzt starten“); der Zeitplan startet sie nacheinander
+const queued = [];
+export const takeQueued = () => queued.shift();
+export const isQueued = (id) => queued.includes(id);
+
 function agentIds() {
   return readdirSync(AGENTS_DIR, { withFileTypes: true })
     .filter((d) => d.isDirectory() && !d.name.startsWith("_") && existsSync(join(AGENTS_DIR, d.name, "agent.json")))
@@ -104,6 +109,7 @@ function overview() {
       last: last ? { at: last.at, result: last.result, by: last.by, note: last.note || "" } : null,
       check: check ? { at: check.at, result: check.result } : null,
       manual: a.manual !== false,
+      queued: queued.includes(id),
     });
   }
   return { file: SCHEDULE_FILE, tz: process.env.TZ || "UTC", items };
@@ -171,6 +177,16 @@ export function startWeb() {
           writeEntry(id, list.join("; "));
         } else return send(res, 400, { error: "Unbekannte Aktion" });
         console.log(`[web] Zeitplan ${id} → ${mode === "slots" ? slots.join("; ") : mode}`);
+        return send(res, 200, overview());
+      }
+      const run = /^\/api\/run\/([\w.-]+)$/.exec(url.pathname);
+      if (req.method === "POST" && run) {
+        if (!/^application\/json/.test(req.headers["content-type"] || "")) return send(res, 415, { error: "JSON erwartet" });
+        const id = run[1];
+        if (!agentIds().includes(id)) return send(res, 404, { error: `Agent „${id}“ gibt es nicht` });
+        if (loadAgent(id).manual === false) return send(res, 400, { error: "Dieser Agent startet nicht von Hand" });
+        if (!queued.includes(id) && !readStatus(id, "status.json")?.running) queued.push(id);
+        console.log(`[web] ${id} von Hand angefordert`);
         return send(res, 200, overview());
       }
       send(res, 404, { error: "Nicht gefunden" });

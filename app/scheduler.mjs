@@ -10,7 +10,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { AGENTS_DIR, clearRunning, loadAgent, readStatus, runAgent } from "./run-agent.mjs";
 import { startControl } from "./lib/control.mjs";
-import { startWeb } from "./lib/web.mjs";
+import { isQueued, startWeb, takeQueued } from "./lib/web.mjs";
 
 const DATA_DIR = process.env.DATA_DIR || "/data";
 const RUNS_FILE = join(DATA_DIR, "runs.json");
@@ -139,20 +139,20 @@ async function loop() {
           }
         }
       }
-      // Von Hand angeforderte Agenten (Knopf im Dashboard „Agenten“), nacheinander
-      for (let id = control?.takeQueued(); id; id = control?.takeQueued()) {
+      // Von Hand angeforderte Agenten (Knopf „Jetzt starten“ in der Weboberfläche), nacheinander
+      for (let id = takeQueued(); id; id = takeQueued()) {
         if (!list.some((a) => a.id === id)) continue;
-        control.refresh();
+        control?.refresh();
         await runAgent(id, { by: "von Hand" }).catch((e) => console.error(`[${id}] ${e.stack || e}`));
-        control.refresh();
+        control?.refresh();
       }
     } finally {
       busy = false;
     }
   };
-  // Läuft-Markierungen eines abgebrochenen Laufs entfernen; Steuerung über HA (CONTROL=off schaltet sie ab)
+  // Läuft-Markierungen eines abgebrochenen Laufs entfernen; Status-Sensoren in HA (CONTROL=off schaltet sie ab)
   clearRunning(agents().map((a) => a.id));
-  const control = process.env.CONTROL === "off" || !process.env.HA_TOKEN ? null : startControl({ agents, readStatus });
+  const control = process.env.CONTROL === "off" || !process.env.HA_TOKEN ? null : startControl({ agents, readStatus, isQueued });
   // Weboberfläche „Zeitplan“ (WEB_PORT, Standard 8080; „aus“ = keine)
   startWeb();
   // Beim ersten Start keine alten Zeiten von heute nachholen

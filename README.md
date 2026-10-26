@@ -5,7 +5,6 @@
 [![Home Assistant Add-on](https://img.shields.io/badge/Home%20Assistant-Add--on-41BDF5?logo=homeassistant&logoColor=white)](unser_zuhause_agents)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.4%2B-41BDF5?logo=homeassistant&logoColor=white)](https://www.home-assistant.io/)
 [![Version](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2FSebastianInTheWild%2Fha-unser-zuhause-agents%2Fmain%2Funser_zuhause_agents%2Fconfig.yaml&query=%24.version&label=Version&color=41BDF5)](unser_zuhause_agents/CHANGELOG.md)
-[![Release](https://img.shields.io/github/v/release/SebastianInTheWild/ha-unser-zuhause-agents?label=Release)](https://github.com/SebastianInTheWild/ha-unser-zuhause-agents/releases)
 [![Architekturen](https://img.shields.io/badge/Architektur-amd64%20%7C%20aarch64-41BDF5)](unser_zuhause_agents/config.yaml)
 [![Lizenz](https://img.shields.io/github/license/SebastianInTheWild/ha-unser-zuhause-agents)](LICENSE)
 [![Letzter Commit](https://img.shields.io/github/last-commit/SebastianInTheWild/ha-unser-zuhause-agents)](https://github.com/SebastianInTheWild/ha-unser-zuhause-agents/commits/main)

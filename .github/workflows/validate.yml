@@ -1,0 +1,37 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  addon-linter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: frenck/action-addon-linter@v2
+        with:
+          path: ./unser_zuhause_agents
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax
+        run: |
+          for f in app/*.mjs app/lib/*.mjs; do node --check "$f"; done
+          sh -n app/start.sh
+      - name: Agenten und Zeitplan
+        run: |
+          for f in agents/*/agent.json; do node -e 'JSON.parse(require("fs").readFileSync(process.argv[1]))' "$f"; done
+          AGENTS_DIR=agents DATA_DIR="$RUNNER_TEMP/data" SCHEDULE_FILE=zeitplan.conf node app/scheduler.mjs list
+      - name: Einstellungen des Add-ons
+        run: |
+          echo '{"claude_code_oauth_token":"x","notify_persons":["person.a"],"skip_label":"Test","env":["DRY=1"]}' > "$RUNNER_TEMP/options.json"
+          out=$(node app/addon-env.mjs "$RUNNER_TEMP/options.json")
+          echo "$out"
+          echo "$out" | grep -q "^export NOTIFY_PERSONS='person.a'$"
+          echo "$out" | grep -q "^export DRY='1'$"

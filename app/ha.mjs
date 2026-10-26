@@ -345,6 +345,8 @@ async function main() {
   const [cmd, sub, ...rest_] = process.argv.slice(2);
   if (cmd === "automations") return automations(sub, rest_);
   const tools = { logs, energy, fixes, batteries, updates, devices: devicesCmd };
+  // Ignorierliste des Geräte-Wächters: nur die Merkliste, ohne Verbindung zu Home Assistant
+  if (cmd === "devices" && (sub === "ignored" || sub === "unignore")) return devicesCmd(null, sub, rest_);
   if (tools[cmd]) {
     const call = await connect();
     try {

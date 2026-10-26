@@ -11,6 +11,7 @@ Ein Home-Assistant-Add-on, in dem KI-Agenten (Claude Code) nach Zeitplan für Ho
 | `log-detektiv` | täglich 07:30 | Liest neue Fehler im HA-Protokoll, gruppiert sie, erklärt Ursache und Lösung, merkt sich harmlose Meldungen. Push bei wichtigen Funden und Dashboard **Log-Detektiv** (Befunde, Verlauf, harmlose Meldungen). |
 | `energie-coach` | So 18:00 | Wertet die letzten 7 Tage aus (PV, Akku, Netz, Geräte, Laufzeiten von Trockner & Co.) und schickt 1–2 konkrete Tipps per Push. Erkennt Datenlücken. |
 | `automations-doktor` | Sa 09:00 | Prüft alle Automationen (fehlende/ausgefallene Entitäten, Fehler in Läufen, Stillstand) und schreibt den Befund ins Dashboard **Automations-Doktor**, ohne Push. |
+| `doktor-umsetzer` | alle 5 min | Übernimmt Empfehlungen, die du im Dashboard **Automations-Doktor** per Knopf freigibst, in die Automation (mit Sicherung) oder lehnt sie begründet ab, und schickt das Ergebnis per Push. Ohne Freigabe startet Claude nicht. |
 
 ## Agent „Automationen sortieren“
 

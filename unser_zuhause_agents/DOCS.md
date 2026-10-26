@@ -20,18 +20,15 @@ KI-Agenten (Claude Code), die nach Zeitplan für Home Assistant arbeiten: Automa
 | `ha_token` | nur falls ein Aufruf über den Supervisor abgelehnt wird: eigener langlebiger Zugriffstoken |
 | `env` | weitere Variablen als `NAME=Wert`, z. B. `LOG_LEVELS=error,warning` oder `CONTROL=off` |
 
-## Agenten und Zeitplan
+## Zeitplan
 
-Beim ersten Start legt das Add-on unter `/addon_configs/<slug>_unser_zuhause_agents/` an (im File editor, über SSH oder Samba erreichbar):
+Wann welcher Agent läuft, stellst du in der Seitenleiste unter **Agenten** ein (Weboberfläche „Zeitplan“): feste Zeiten, Wochentage, Abstände oder pausiert. Änderungen gelten nach spätestens 30 Sekunden, ohne Neustart.
 
-```
-zeitplan.conf   wann welcher Agent läuft – Änderungen gelten nach 30 Sekunden
-agents/         ein Ordner je Agent (agent.json + prompt.md), _vorlage zum Kopieren
-```
+## Eigene Agenten
 
-Die Zeiten änderst du am einfachsten in der Seitenleiste unter **Agenten** (Weboberfläche „Zeitplan“). Neue Agenten: `agents/_vorlage` kopieren, anpassen, fertig, ohne Neustart.
+Beim ersten Start legt das Add-on unter `/addon_configs/<slug>_unser_zuhause_agents/agents/` einen Ordner je Agent an (im File editor, über SSH oder Samba erreichbar). Neuer Agent: `_vorlage` kopieren, `prompt.md` und `agent.json` anpassen. Er erscheint ohne Neustart in der Weboberfläche.
 
-Mitgelieferte Agenten kopiert das Add-on nur, wenn es den Ordner noch nicht gibt. Deine Änderungen an Anweisungen bleiben also bei Updates erhalten. Willst du die neue Fassung eines mitgelieferten Agenten, lösche seinen Ordner und starte das Add-on neu. Einen Agenten abschalten: in `zeitplan.conf` `= aus` setzen statt den Ordner zu löschen, sonst kommt er beim nächsten Start wieder.
+Mitgelieferte Agenten kopiert das Add-on nur, wenn es den Ordner noch nicht gibt. Deine Änderungen an Anweisungen bleiben also bei Updates erhalten. Willst du die neue Fassung eines mitgelieferten Agenten, lösche seinen Ordner und starte das Add-on neu. Einen Agenten abschalten: in der Weboberfläche pausieren statt den Ordner zu löschen, sonst kommt er beim nächsten Start wieder.
 
 Merklisten, Sicherungen und Logs liegen in den Add-on-Daten und sind in den HA-Backups enthalten (ohne die Tageslogs).
 

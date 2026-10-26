@@ -1,11 +1,12 @@
 #!/bin/sh
 # Start im Container: Claude Code bei Bedarf installieren (bleibt in /data/npm), dann den Zeitplan starten.
 set -e
-# Als Home-Assistant-Add-on: Einstellungen aus /data/options.json, HA über den Supervisor, Agenten und Zeitplan unter /config
+# Als Home-Assistant-Add-on: Einstellungen aus /data/options.json, HA über den Supervisor, Agenten unter /config,
+# Zeitplan in /data (wird nur über die Weboberfläche gepflegt)
 if [ -n "$SUPERVISOR_TOKEN" ] && [ -f /data/options.json ]; then
   eval "$(node "$(dirname "$0")/addon-env.mjs" /data/options.json)"
   export HA_URL="${HA_URL:-http://supervisor/core}" HA_TOKEN="${HA_TOKEN:-$SUPERVISOR_TOKEN}"
-  export AGENTS_DIR="${AGENTS_DIR:-/config/agents}" SCHEDULE_FILE="${SCHEDULE_FILE:-/config/zeitplan.conf}" DATA_DIR="${DATA_DIR:-/data}"
+  export AGENTS_DIR="${AGENTS_DIR:-/config/agents}" SCHEDULE_FILE="${SCHEDULE_FILE:-/data/zeitplan.conf}" DATA_DIR="${DATA_DIR:-/data}"
   # Mitgelieferte Agenten nur ergänzen, nie überschreiben – eigene Änderungen bleiben erhalten
   mkdir -p "$AGENTS_DIR"
   for d in "$DEFAULTS_DIR"/agents/*/; do

@@ -20,7 +20,7 @@ ingress_port: 8080
 panel_icon: mdi:robot-outline
 panel_title: Agenten
 panel_admin: true
-# Agenten und zeitplan.conf liegen unter /addon_configs/<slug>/ (File editor, SSH, Samba)
+# Agenten liegen unter /addon_configs/<slug>/ (File editor, SSH, Samba); den Zeitplan pflegt die Weboberfläche
 map:
   - type: addon_config
     read_only: false

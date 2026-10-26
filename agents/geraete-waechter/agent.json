@@ -1,0 +1,17 @@
+{
+  "name": "Geräte-Wächter",
+  "description": "Findet Geräte, die offline sind, immer wieder wegfallen oder ein schwaches Funksignal haben, erkennt Muster und schlägt Abhilfe vor.",
+  "icon": "mdi:access-point-network-off",
+  "enabled": true,
+  "schedule": ["08:30"],
+  "precheck": "node ha.mjs devices check --count",
+  "allowedTools": [
+    "Bash(node ha.mjs devices check)",
+    "Bash(node ha.mjs devices ignored)",
+    "Bash(node ha.mjs devices report)",
+    "Bash(node ha.mjs states:*)",
+    "Edit(/{{DATA}}/report.json)",
+    "Read(/{{DATA}}/report.json)"
+  ],
+  "maxTurns": 20
+}

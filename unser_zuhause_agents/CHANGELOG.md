@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.0
+
+- Neuer Agent **Batterie-Wächter** (So 10:00): meldet bald leere Batterien mit Raum, Prognose und Batterietyp und setzt die Batterien auf die Einkaufsliste
+- Neuer Agent **Update-Berater** (Fr 18:00): liest die Release Notes offener Updates und empfiehlt einspielen, vorher prüfen oder abwarten
+- Neuer Agent **Geräte-Wächter** (täglich 08:30): findet Geräte, die offline sind, immer wieder wegfallen oder schwaches Signal haben, und erkennt Muster
+- Bestehende Installationen bekommen die neuen Agenten beim Start automatisch dazu
+- Mindestversion Home Assistant 2024.4 (Labels und Kategorien)
+- README: alle Agenten und Einstellungen mit Standardwerten, Voraussetzungen, Ein-Klick-Knöpfe, dazugehörige Repos
+- Prüfungen bei jedem Push und wöchentlich: Image bauen und starten, ShellCheck, Übersetzungen, Changelog und Agenten; GitHub-Releases aus dem Changelog
+
 ## 1.2.0
 
 - Einstellungen im Tab *Konfiguration* mit Namen und Erklärung, auf Deutsch und Englisch

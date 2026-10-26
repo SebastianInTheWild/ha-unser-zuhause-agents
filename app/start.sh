@@ -7,7 +7,7 @@ if [ -n "$SUPERVISOR_TOKEN" ] && [ -f /data/options.json ]; then
   eval "$(node "$(dirname "$0")/addon-env.mjs" /data/options.json)"
   export HA_URL="${HA_URL:-http://supervisor/core}" HA_TOKEN="${HA_TOKEN:-$SUPERVISOR_TOKEN}"
   export AGENTS_DIR="${AGENTS_DIR:-/config/agents}" SCHEDULE_FILE="${SCHEDULE_FILE:-/data/zeitplan.conf}" DATA_DIR="${DATA_DIR:-/data}"
-  # Umzug aus der Docker-Variante: Inhalt von /config/import (alter daten/-Ordner, zeitplan.conf) einmalig nach /data
+  # Daten übernehmen: Inhalt von /config/import (Datenordner je Agent, zeitplan.conf) einmalig nach /data
   if [ -d /config/import ] && [ -n "$(ls -A /config/import)" ]; then
     cp -a /config/import/. "$DATA_DIR"/
     [ -f "$DATA_DIR/zeitplan.conf" ] && [ "$SCHEDULE_FILE" != "$DATA_DIR/zeitplan.conf" ] && mv "$DATA_DIR/zeitplan.conf" "$SCHEDULE_FILE"

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Add-on: wandelt die Einstellungen aus /data/options.json in export-Zeilen für start.sh um.
-// Werte, die schon als Umgebungsvariable gesetzt sind, bleiben (wie bei geheim.env).
+// Werte, die schon als Umgebungsvariable gesetzt sind, bleiben.
 // Autor: SebastianInTheWild · MIT-Lizenz
 
 import { readFileSync } from "node:fs";

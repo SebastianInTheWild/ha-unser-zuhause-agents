@@ -2,7 +2,7 @@
 // Zeitplan für alle Agenten unter agents/<id>/agent.json. Neue oder geänderte Agenten werden ohne Neustart erkannt.
 // Autor: SebastianInTheWild · MIT-Lizenz
 //
-//   node scheduler.mjs           Dauerbetrieb (Standard im Container)
+//   node scheduler.mjs           Dauerbetrieb (Standard im Add-on)
 //   node scheduler.mjs list      Agenten und Zeiten anzeigen
 //   node scheduler.mjs run <id>  Agent sofort einmal starten
 

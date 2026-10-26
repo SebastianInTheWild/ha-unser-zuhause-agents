@@ -37,16 +37,9 @@ Ein HA-Token ist nicht nötig, das Add-on nutzt den Supervisor. Alle Einstellung
 
 Die Weboberfläche „Zeitplan“ erscheint als **Agenten** in der Seitenleiste (Ingress, nur für Admins). Dort stellst du je Agent feste Zeiten, Wochentage oder Abstände ein oder pausierst ihn. Änderungen gelten nach spätestens 30 Sekunden, ohne Neustart. Eine neu eingetragene Zeit, die heute schon vorbei ist, gilt erst ab morgen. Verpasst das Add-on eine Uhrzeit, weil es aus war, holt es den Lauf am selben Tag nach.
 
-## Umzug aus der Docker-Variante
+## Daten übernehmen
 
-Die frühere Docker/Portainer-Fassung (mit Rezept-Agenten) liegt in `ha-unser-zuhause-agents-old`.
-
-1. Add-on installieren, aber noch nicht starten.
-2. Nach `/addon_configs/<slug>_unser_zuhause_agents/` kopieren (File editor, SSH oder Samba):
-   - angepasste Agenten-Ordner nach `agents/`
-   - den **Inhalt** des alten `daten/`-Ordners und die alte `zeitplan.conf` nach `import/`
-3. Alten Container stoppen, sonst laufen die Agenten doppelt.
-4. Add-on starten. Es übernimmt `import/` einmalig (Merklisten, Sicherungen, Zeitplan) und löscht den Ordner danach.
+Merklisten, Sicherungen und Zeitplan aus einer bestehenden Installation übernimmst du über den Ordner `import/` unter `/addon_configs/<slug>_unser_zuhause_agents/`: den Inhalt des Datenordners (ein Unterordner je Agent) und die `zeitplan.conf` dorthin kopieren und das Add-on (neu) starten. Es übernimmt alles einmalig und löscht den Ordner danach.
 
 ## Bedienen
 
@@ -59,7 +52,7 @@ Die frühere Docker/Portainer-Fassung (mit Rezept-Agenten) liegt in `ha-unser-zu
 Der Scheduler legt in Home Assistant selbst ein Dashboard **Agenten** an (nur für Admins, in der Seitenleiste). Es zeigt je Agent:
 
 - **Status** als Sensor `sensor.agent_<id>`: läuft, wartet, erfolgreich, fehlgeschlagen, nichts zu tun
-- Zeitplan, nächster Lauf, letzter Lauf mit Ergebnis, Dauer und Auslöser (Zeitplan, von Hand, Slack …), dazu die letzten Protokollzeilen
+- Zeitplan, nächster Lauf, letzter Lauf mit Ergebnis, Dauer und Auslöser (Zeitplan oder von Hand), dazu die letzten Protokollzeilen
 - Knopf **Jetzt starten** (`input_button` „Agent <Name>“, mit Rückfrage)
 
 Ein Druck auf den Knopf reiht den Agenten ein. Er startet innerhalb von etwa 30 Sekunden, sobald kein anderer Agent läuft. Die Vorprüfung gilt auch hier: Gibt es nichts zu tun, startet Claude nicht.

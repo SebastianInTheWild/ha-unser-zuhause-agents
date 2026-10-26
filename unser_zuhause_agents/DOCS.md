@@ -32,15 +32,10 @@ Mitgelieferte Agenten kopiert das Add-on nur, wenn es den Ordner noch nicht gibt
 
 Merklisten, Sicherungen und Logs liegen in den Add-on-Daten und sind in den HA-Backups enthalten (ohne die Tageslogs).
 
-## Umzug aus der Docker-Variante
+## Daten übernehmen
 
-1. Add-on installieren, aber noch nicht starten.
-2. Nach `/addon_configs/<slug>_unser_zuhause_agents/` kopieren:
-   - deine angepassten Agenten-Ordner nach `agents/`
-   - den **Inhalt** des alten `daten/`-Ordners und die alte `zeitplan.conf` nach `import/`
-3. Alten Container stoppen, sonst laufen die Agenten doppelt.
-4. Add-on starten. Es übernimmt `import/` einmalig (Merklisten, Sicherungen, Zeitplan) und löscht den Ordner danach. Im Log steht „Import: alte Daten … übernommen“.
+Merklisten, Sicherungen und Zeitplan aus einer bestehenden Installation: den Inhalt des Datenordners (ein Unterordner je Agent) und die `zeitplan.conf` nach `/addon_configs/<slug>_unser_zuhause_agents/import/` kopieren und das Add-on (neu) starten. Es übernimmt alles einmalig und löscht `import/` danach. Im Protokoll steht dann „Import: alte Daten … übernommen“.
 
 ## Dashboard „Agenten“
 
-Wie in der Docker-Variante legt das Add-on das Dashboard **Agenten** mit Status-Sensoren (`sensor.agent_<id>`) und Knöpfen **Jetzt starten** an.
+Das Add-on legt das Dashboard **Agenten** mit Status-Sensoren (`sensor.agent_<id>`) und Knöpfen **Jetzt starten** an.

@@ -2,7 +2,7 @@
 // (sensor.agent_<id>), dazu ein eigenes Dashboard „Agenten“. Läuft im Scheduler neben dem Zeitplan:
 // - drückst du einen Knopf, kommt der Agent in die Warteschlange und startet beim nächsten Durchlauf
 // - Status (läuft, letzter Lauf, nächster Lauf, Protokoll) schreibt die Steuerung als Sensor nach HA
-// Kein offener Port: der Container fragt HA, die Anmeldung läuft über HA.
+// Kein offener Port: das Add-on fragt HA über den Supervisor.
 // Autor: SebastianInTheWild · MIT-Lizenz
 
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";

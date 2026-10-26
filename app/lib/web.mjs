@@ -1,6 +1,6 @@
 // Weboberfläche „Zeitplan“: zeigt alle Agenten aus agents/ mit Zeitplan, letztem und nächstem Lauf
 // und schreibt Änderungen nach zeitplan.conf (Kommentare und Reihenfolge bleiben erhalten).
-// Der Zeitplan liest die Datei alle 30 s, die Slack-Brücke jede Minute – ein Neustart ist nicht nötig.
+// Der Zeitplan liest die Datei alle 30 s – ein Neustart ist nicht nötig.
 // Port: WEB_PORT (Standard 8080, „aus“ = keine Oberfläche). Passwort: WEB_PASSWORT (optional, HTTP-Anmeldung).
 // Autor: SebastianInTheWild · MIT-Lizenz
 
@@ -14,7 +14,6 @@ import { nextRunText } from "./control.mjs";
 
 const SCHEDULE_FILE = process.env.SCHEDULE_FILE || join(AGENTS_DIR, "..", "zeitplan.conf");
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
-const STATS_ID = "rezept-statistik";
 const HTML = join(dirname(fileURLToPath(import.meta.url)), "web.html");
 
 // ---------- zeitplan.conf ----------
@@ -107,21 +106,6 @@ function overview() {
       manual: a.manual !== false,
     });
   }
-  // Sonderfall: tägliche Rezept-Statistik der Slack-Brücke (kein Agent, nur eine Uhrzeit)
-  const envStats = (process.env.REZEPT_STATISTIK || "").trim();
-  const statsRaw = plan[STATS_ID] ?? (envStats || "19:00");
-  const statsSlots = slotsOf(statsRaw);
-  items.push({
-    id: STATS_ID,
-    kind: "statistik",
-    name: "Rezept-Statistik",
-    description: "Schickt täglich die Zahlen zu den Rezepten (gesamt, geprüft, noch offen) in den Slack-Kanal. Kein Agent – das macht die Slack-Brücke.",
-    schedule: statsSlots,
-    enabled: statsSlots.length > 0,
-    source: STATS_ID in plan ? "zeitplan.conf" : envStats ? "REZEPT_STATISTIK" : "Standard",
-    default: { schedule: [envStats || "19:00"], enabled: true },
-    next: nextRunText({ schedule: statsSlots, enabled: statsSlots.length > 0 }),
-  });
   return { file: SCHEDULE_FILE, tz: process.env.TZ || "UTC", items };
 }
 
@@ -170,8 +154,7 @@ export function startWeb() {
         // Schutz gegen Formular-Angriffe von fremden Seiten: nur JSON von dieser Seite
         if (!/^application\/json/.test(req.headers["content-type"] || "")) return send(res, 415, { error: "JSON erwartet" });
         const id = m[1];
-        const isStats = id === STATS_ID;
-        if (!isStats && !agentIds().includes(id)) return send(res, 404, { error: `Agent „${id}“ gibt es nicht` });
+        if (!agentIds().includes(id)) return send(res, 404, { error: `Agent „${id}“ gibt es nicht` });
         const { mode, slots = [] } = await body(req);
         if (mode === "default") {
           writeEntry(id, null);
@@ -180,9 +163,8 @@ export function startWeb() {
         } else if (mode === "slots") {
           const list = [...new Set(slots.map((s) => String(s).trim()).filter(Boolean))];
           if (!list.length) return send(res, 400, { error: "Mindestens eine Zeit angeben – oder „Pausieren“ wählen" });
-          if (isStats && list.length > 1) return send(res, 400, { error: "Die Statistik kann nur eine Uhrzeit haben" });
           for (const s of list) {
-            const err = checkSlot(s, { allowInterval: !isStats });
+            const err = checkSlot(s);
             if (err) return send(res, 400, { error: err });
           }
           if (list.some((s) => /^alle/i.test(s)) && list.length > 1) return send(res, 400, { error: "Abstand und feste Zeiten bitte nicht mischen" });

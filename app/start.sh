@@ -1,6 +1,20 @@
 #!/bin/sh
 # Start im Container: Claude Code bei Bedarf installieren (bleibt in /data/npm), dann den Zeitplan starten.
 set -e
+# Als Home-Assistant-Add-on: Einstellungen aus /data/options.json, HA über den Supervisor, Agenten und Zeitplan unter /config
+if [ -n "$SUPERVISOR_TOKEN" ] && [ -f /data/options.json ]; then
+  eval "$(node "$(dirname "$0")/addon-env.mjs" /data/options.json)"
+  export HA_URL="${HA_URL:-http://supervisor/core}" HA_TOKEN="${HA_TOKEN:-$SUPERVISOR_TOKEN}"
+  export AGENTS_DIR="${AGENTS_DIR:-/config/agents}" SCHEDULE_FILE="${SCHEDULE_FILE:-/config/zeitplan.conf}" DATA_DIR="${DATA_DIR:-/data}"
+  # Mitgelieferte Agenten nur ergänzen, nie überschreiben – eigene Änderungen bleiben erhalten
+  mkdir -p "$AGENTS_DIR"
+  for d in "$DEFAULTS_DIR"/agents/*/; do
+    n=$(basename "$d")
+    [ -e "$AGENTS_DIR/$n" ] || { cp -r "$d" "$AGENTS_DIR/$n"; echo "Agent $n nach $AGENTS_DIR kopiert"; }
+  done
+  [ -e "$SCHEDULE_FILE" ] || cp "$DEFAULTS_DIR/zeitplan.conf" "$SCHEDULE_FILE"
+  echo "Add-on: Agenten in $AGENTS_DIR, Zeitplan $SCHEDULE_FILE"
+fi
 export NPM_CONFIG_PREFIX=/data/npm
 export PATH="/data/npm/bin:$PATH"
 # Zugangsdaten aus /data/geheim.env (eine Zeile KEY=Wert); Werte aus Portainer haben Vorrang. Änderungen gelten nach Neustart.
@@ -20,15 +34,5 @@ if ! command -v claude >/dev/null 2>&1 || [ "${CLAUDE_UPDATE:-0}" = "1" ]; then
 fi
 echo "Claude Code $(claude --version 2>/dev/null || echo '?')"
 [ -n "$HA_TOKEN" ] || echo "WARNUNG: HA_TOKEN fehlt – in Portainer unter Environment variables setzen"
-[ -n "$CLAUDE_CODE_OAUTH_TOKEN$ANTHROPIC_API_KEY" ] || echo "WARNUNG: CLAUDE_CODE_OAUTH_TOKEN fehlt – auf einem PC mit Claude Code „claude setup-token“ ausführen"
-# Slack-Brücke (Rezepte) läuft neben dem Zeitplan, sobald beide Slack-Tokens gesetzt sind; startet sich bei Fehlern neu
-if [ -n "$SLACK_APP_TOKEN" ] && [ -n "$SLACK_BOT_TOKEN" ]; then
-  (while true; do
-    node "$(dirname "$0")/slack-bridge.mjs" || true
-    echo "Slack-Brücke beendet – Neustart in 15 s"
-    sleep 15
-  done) &
-else
-  echo "Slack-Brücke aus (SLACK_APP_TOKEN/SLACK_BOT_TOKEN in geheim.env fehlen)"
-fi
+[ -n "$CLAUDE_CODE_OAUTH_TOKEN$ANTHROPIC_API_KEY" ] || echo "WARNUNG: CLAUDE_CODE_OAUTH_TOKEN fehlt – auf einem PC mit Claude Code „claude setup-token“ ausführen (Add-on: Tab Konfiguration)"
 exec node "$(dirname "$0")/scheduler.mjs"

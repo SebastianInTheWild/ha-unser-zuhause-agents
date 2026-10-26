@@ -23,7 +23,9 @@ export async function rest(method, path, body) {
 /** Öffnet eine WebSocket-Verbindung und gibt eine Funktion call(msg) zurück. */
 export async function connect() {
   assertConfig();
-  const ws = new WebSocket(`${HA_URL.replace(/^http/, "ws")}/api/websocket`);
+  // Über den Supervisor (Add-on) heißt der Pfad /core/websocket statt /api/websocket
+  const path = /\/\/supervisor\/core$/.test(HA_URL) ? "websocket" : "api/websocket";
+  const ws = new WebSocket(`${HA_URL.replace(/^http/, "ws")}/${path}`);
   const pending = new Map();
   let nextId = 1;
   await new Promise((resolve, reject) => {

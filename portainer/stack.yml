@@ -38,6 +38,10 @@ services:
         target: /agents/automations-doktor/agent.json
       - source: agents_automations_doktor_prompt_md
         target: /agents/automations-doktor/prompt.md
+      - source: agents_doktor_umsetzer_agent_json
+        target: /agents/doktor-umsetzer/agent.json
+      - source: agents_doktor_umsetzer_prompt_md
+        target: /agents/doktor-umsetzer/prompt.md
       - source: agents_energie_coach_agent_json
         target: /agents/energie-coach/agent.json
       - source: agents_energie_coach_prompt_md
@@ -67,6 +71,10 @@ configs:
       //   node ha.mjs automations report            Befund aus <AGENT_DATA>/report.json ins Dashboard schreiben
       //   node ha.mjs logs pending|harmless|report  Neue Fehler im HA-Protokoll (Log-Detektiv)
       //   node ha.mjs energy week|report            Energiedaten der letzten 7 Tage (Energie-Coach)
+      //   node ha.mjs fixes pending [--count]       Freigegebene Empfehlungen des Doktors mit Prüfergebnis (Doktor-Umsetzer)
+      //   node ha.mjs fixes apply <id>              Freigegebene Empfehlung anwenden (mit Sicherung; DRY=1: nur zeigen)
+      //   node ha.mjs fixes reject <id> "<grund>"   Freigegebene Empfehlung nicht umsetzen
+      //   node ha.mjs fixes finish                  Push mit den Ergebnissen dieses Laufs
 
       import { mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
       import { join } from "node:path";
@@ -74,6 +82,7 @@ configs:
       import { doctor } from "./lib/doctor.mjs";
       import { energy } from "./lib/energy.mjs";
       import { logs } from "./lib/logs.mjs";
+      import { fixes } from "./lib/fixes.mjs";
 
       const DRY = process.env.DRY === "1";
       const DATA = process.env.AGENT_DATA || join(process.env.DATA_DIR || "/data", "automationen");
@@ -383,10 +392,10 @@ configs:
       async function main() {
         const [cmd, sub, ...rest_] = process.argv.slice(2);
         if (cmd === "automations") return automations(sub, rest_);
-        if (cmd === "logs" || cmd === "energy") {
+        if (cmd === "logs" || cmd === "energy" || cmd === "fixes") {
           const call = await connect();
           try {
-            return await (cmd === "logs" ? logs(call, sub, rest_) : energy(call, sub, rest_));
+            return await (cmd === "logs" ? logs(call, sub, rest_) : cmd === "fixes" ? fixes(call, sub, rest_) : energy(call, sub, rest_));
           } finally {
             call.close();
           }
@@ -403,7 +412,7 @@ configs:
           call.close();
           return out({ ok: true });
         }
-        console.error("Befehle: states | notify | automations context|pending|apply|init|health|report | logs pending|harmless|report | energy week|report");
+        console.error("Befehle: states | notify | automations context|pending|apply|init|health|report | logs pending|harmless|report | energy week|report | fixes pending|apply|reject|finish");
         process.exit(2);
       }
 
@@ -438,7 +447,9 @@ configs:
       /** Öffnet eine WebSocket-Verbindung und gibt eine Funktion call(msg) zurück. */
       export async function connect() {
         assertConfig();
-        const ws = new WebSocket(`$${HA_URL.replace(/^http/, "ws")}/api/websocket`);
+        // Über den Supervisor (Add-on) heißt der Pfad /core/websocket statt /api/websocket
+        const path = /\/\/supervisor\/core$$/.test(HA_URL) ? "websocket" : "api/websocket";
+        const ws = new WebSocket(`$${HA_URL.replace(/^http/, "ws")}/$${path}`);
         const pending = new Map();
         let nextId = 1;
         await new Promise((resolve, reject) => {
@@ -482,7 +493,7 @@ configs:
       // Autor: SebastianInTheWild · MIT-Lizenz
 
       import { spawn, spawnSync } from "node:child_process";
-      import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+      import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
       import { dirname, join } from "node:path";
       import { fileURLToPath } from "node:url";
       import { connect, notify } from "./lib/ha.mjs";
@@ -498,7 +509,47 @@ configs:
         return { id, dir, ...cfg, promptText: prompt };
       }
 
-      export async function runAgent(id) {
+      // Status je Agent für das Dashboard „Agenten“: status.json (läuft gerade), last-run.json (letzter echter Lauf),
+      // last-check.json (letzte Vorprüfung ohne Arbeit bei quiet-Agenten)
+      const statusFile = (id, name) => join(DATA_DIR, id, name);
+      export const readStatus = (id, name) => {
+        try {
+          return JSON.parse(readFileSync(statusFile(id, name), "utf8"));
+        } catch {
+          return null;
+        }
+      };
+      const writeStatus = (id, name, data) => {
+        try {
+          writeFileSync(statusFile(id, name), JSON.stringify(data));
+        } catch {}
+      };
+      /** Läuft-Markierungen von einem abgebrochenen Prozess entfernen (beim Start des Schedulers). */
+      export function clearRunning(ids) {
+        for (const id of ids) rmSync(statusFile(id, "status.json"), { force: true });
+      }
+
+      // quiet: „Nichts zu tun“ nicht protokollieren (für Agenten, die alle paar Minuten prüfen)
+      // by: wer den Lauf ausgelöst hat (zeitplan, von Hand …) – nur für die Anzeige
+      export async function runAgent(id, { quiet = false, by = "direkt" } = {}) {
+        const started = Date.now();
+        let r;
+        try {
+          r = await run(id, quiet, by);
+        } catch (e) {
+          r = { result: "fehler", note: e.message };
+          throw e;
+        } finally {
+          rmSync(statusFile(id, "status.json"), { force: true });
+          const entry = { at: new Date(started).toISOString(), by, result: r?.result || "fehler", note: r?.note || "", duration_s: Math.round((Date.now() - started) / 1000) };
+          // Leere Vorprüfungen alle paar Minuten überschreiben nicht den letzten echten Lauf
+          if (quiet && entry.result === "nichts zu tun") writeStatus(id, "last-check.json", entry);
+          else if (existsSync(join(DATA_DIR, id))) writeStatus(id, "last-run.json", entry);
+        }
+        return r.code;
+      }
+
+      async function run(id, quiet, by) {
         const agent = loadAgent(id);
         const data = join(DATA_DIR, id);
         mkdirSync(join(data, "logs"), { recursive: true });
@@ -514,7 +565,7 @@ configs:
         if (agent.init && !existsSync(join(data, ".initialized"))) {
           const r = spawnSync("sh", ["-c", agent.init], { cwd: APP, env, encoding: "utf8" });
           log(`Einrichtung: $${(r.stdout || r.stderr).trim()}`);
-          if (r.status !== 0) return log("Einrichtung fehlgeschlagen – Abbruch");
+          if (r.status !== 0) return log("Einrichtung fehlgeschlagen – Abbruch"), { result: "fehler", note: "Einrichtung fehlgeschlagen" };
           appendFileSync(join(data, ".initialized"), new Date().toISOString());
         }
 
@@ -522,8 +573,14 @@ configs:
         if (agent.precheck) {
           const r = spawnSync("sh", ["-c", agent.precheck], { cwd: APP, env, encoding: "utf8" });
           const res = (r.stdout || "").trim();
-          if (r.status !== 0) return log(`Vorprüfung fehlgeschlagen: $${(r.stderr || res).trim()}`);
-          if (res === "0") return log("Nichts zu tun");
+          if (r.status !== 0) {
+            log(`Vorprüfung fehlgeschlagen: $${(r.stderr || res).trim()}`);
+            return { result: "fehler", note: `Vorprüfung fehlgeschlagen: $${(r.stderr || res).trim().slice(0, 200)}` };
+          }
+          if (res === "0") {
+            if (!quiet) log("Nichts zu tun");
+            return { result: "nichts zu tun" };
+          }
           log(`Vorprüfung: $${res}`);
         }
 
@@ -532,7 +589,8 @@ configs:
         const args = ["-p", fill(agent.promptText), "--output-format", "text", "--max-turns", String(agent.maxTurns || 30), "--add-dir", data];
         if (agent.allowedTools?.length) args.push("--allowedTools", ...agent.allowedTools.map(fill));
         if (agent.model || process.env.CLAUDE_MODEL) args.push("--model", agent.model || process.env.CLAUDE_MODEL);
-        log("Claude startet");
+        log(`Claude startet$${by !== "direkt" ? ` ($${by})` : ""}`);
+        writeStatus(id, "status.json", { running: true, since: new Date().toISOString(), by });
         const code = await new Promise((resolve) => {
           const p = spawn(process.env.CLAUDE_BIN || "claude", args, { cwd: APP, env, stdio: ["ignore", "pipe", "pipe"] });
           p.stdout.on("data", (d) => appendFileSync(logFile, d));
@@ -551,7 +609,7 @@ configs:
             call.close();
           }
         }
-        return code;
+        return { code, result: code === 0 ? "ok" : "fehler", note: code === 0 ? "" : `Claude beendet mit Code $${code}` };
       }
   app_scheduler_mjs:
     content: |
@@ -565,17 +623,46 @@ configs:
 
       import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
       import { join } from "node:path";
-      import { AGENTS_DIR, loadAgent, runAgent } from "./run-agent.mjs";
+      import { AGENTS_DIR, clearRunning, loadAgent, readStatus, runAgent } from "./run-agent.mjs";
+      import { startControl } from "./lib/control.mjs";
+      import { startWeb } from "./lib/web.mjs";
 
       const DATA_DIR = process.env.DATA_DIR || "/data";
       const RUNS_FILE = join(DATA_DIR, "runs.json");
+      const SCHEDULE_FILE = process.env.SCHEDULE_FILE || join(AGENTS_DIR, "..", "zeitplan.conf");
+
+      // zeitplan.conf: eine Zeile je Agent, z. B. „log-detektiv = 07:30“, „energie-coach = So 18:00“,
+      // mehrere Zeiten mit „;“ („automationen = 08:00; 20:00“), „alle 5 min“ = in Abständen, „aus“ pausiert. Hat Vorrang vor schedule/enabled in agent.json.
+      let warned = "";
+      function loadSchedule() {
+        if (!existsSync(SCHEDULE_FILE)) return {};
+        const out = {};
+        const bad = [];
+        readFileSync(SCHEDULE_FILE, "utf8")
+          .split(/\r?\n/)
+          .forEach((raw, i) => {
+            const line = raw.replace(/#.*/, "").trim();
+            if (!line) return;
+            const m = /^([\w.-]+)\s*[=:]\s*(.*)$$/.exec(line);
+            if (!m) return bad.push(`Zeile $${i + 1}: „$${raw.trim()}“`);
+            const v = m[2].trim();
+            out[m[1]] = /^(aus|off|-)?$$/i.test(v) ? [] : v.split(";").map((s) => s.trim()).filter(Boolean);
+          });
+        const msg = bad.join(", ");
+        if (msg && msg !== warned) console.error(`zeitplan.conf: nicht verstanden – $${msg} (Beispiel: log-detektiv = 07:30)`);
+        warned = msg;
+        return out;
+      }
 
       function agents() {
+        const plan = loadSchedule();
         return readdirSync(AGENTS_DIR, { withFileTypes: true })
           .filter((d) => d.isDirectory() && !d.name.startsWith("_") && existsSync(join(AGENTS_DIR, d.name, "agent.json")))
           .map((d) => {
             try {
-              return loadAgent(d.name);
+              const a = loadAgent(d.name);
+              if (a.id in plan) Object.assign(a, { schedule: plan[a.id], enabled: plan[a.id].length > 0, fromFile: true });
+              return a;
             } catch (e) {
               console.error(`[$${d.name}] agent.json fehlerhaft: $${e.message}`);
               return null;
@@ -595,9 +682,14 @@ configs:
         return { day: `$${p.year}-$${p.month}-$${p.day}`, time: `$${p.hour}:$${p.minute}`, weekday: p.weekday.replace(".", "") };
       }
 
-      // Zeitplan-Eintrag: „08:00“ (täglich) oder mit Wochentagen „So 18:00“ / „Mo,Mi,Fr 07:30“
+      // Zeitplan-Eintrag: „08:00“ (täglich), mit Wochentagen „So 18:00“ / „Mo,Mi,Fr 07:30“ oder Abstand „alle 5 min“
       const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+      const intervalOf = (slot) => {
+        const m = /^alle\s+(\d+)\s*min$$/i.exec(String(slot).trim());
+        return m && Number(m[1]) >= 1 ? Number(m[1]) : null;
+      };
       function parseSlot(slot) {
+        if (intervalOf(slot)) return { interval: intervalOf(slot) };
         const m = /^(?:([A-Za-z,]+)\s+)?(\d{2}:\d{2})$$/.exec(String(slot).trim());
         if (!m) return null;
         const days = m[1] ? m[1].split(",").map((s) => s.trim()) : WEEKDAYS;
@@ -605,13 +697,16 @@ configs:
       }
       const due = (slot, n) => {
         const s = parseSlot(slot);
-        return s && s.days.includes(n.weekday) && n.time >= s.time;
+        return Boolean(s && !s.interval && s.days.includes(n.weekday) && n.time >= s.time);
       };
 
       const loadRuns = () => (existsSync(RUNS_FILE) ? JSON.parse(readFileSync(RUNS_FILE, "utf8")) : {});
 
+      const summary = (list) => list.map((a) => `$${a.id} $${a.enabled === false ? "aus" : [].concat(a.schedule || []).join("/") || "–"}`).join(", ") || "keine";
+
       async function loop() {
-        console.log(`Zeitplan läuft (TZ $${process.env.TZ || "UTC"}). Agenten: $${agents().map((a) => `$${a.id} $${[].concat(a.schedule || []).join("/")}`).join(", ") || "keine"}`);
+        console.log(`Zeitplan läuft (TZ $${process.env.TZ || "UTC"}, Datei $${SCHEDULE_FILE}$${existsSync(SCHEDULE_FILE) ? "" : " fehlt – Zeiten aus agent.json"})`);
+        let last = "";
         let busy = false;
         const tick = async () => {
           if (busy) return;
@@ -619,30 +714,71 @@ configs:
           try {
             const n = now();
             const runs = loadRuns();
-            for (const a of agents()) {
+            const list = agents();
+            const s = summary(list);
+            if (s !== last) console.log(`$${last ? "Zeitplan geändert" : "Agenten"}: $${s}`);
+            last = s;
+            for (const a of list) {
               if (a.enabled === false) continue;
               for (const slot of [].concat(a.schedule || [])) {
                 if (!parseSlot(slot)) {
-                  console.error(`[$${a.id}] Zeitplan „$${slot}“ ungültig (Beispiele: 08:00, So 18:00, Mo,Mi 07:30)`);
+                  console.error(`[$${a.id}] Zeitplan „$${slot}“ ungültig (Beispiele: 08:00, So 18:00, Mo,Mi 07:30, alle 5 min)`);
                   continue;
                 }
                 const key = `$${a.id}@$${slot}`;
+                // Abstand: läuft, wenn seit dem letzten Lauf genug Minuten vergangen sind (Zeitstempel statt Tag)
+                const every = intervalOf(slot);
+                if (every) {
+                  const lastRun = Date.parse(runs[key] || 0) || 0;
+                  if (Date.now() - lastRun >= every * 60_000) {
+                    runs[key] = new Date().toISOString();
+                    writeFileSync(RUNS_FILE, JSON.stringify(runs, null, 1));
+                    await runAgent(a.id, { quiet: true, by: "zeitplan" }).catch((e) => console.error(`[$${a.id}] $${e.stack || e}`));
+                  }
+                  continue;
+                }
+                // Neu eingetragene Zeit, die heute schon vorbei ist: erst ab morgen (sonst liefe der Agent sofort nach dem Speichern)
+                if (!known.has(key)) {
+                  known.add(key);
+                  if (due(slot, n) && runs[key] !== n.day) {
+                    runs[key] = n.day;
+                    writeFileSync(RUNS_FILE, JSON.stringify(runs, null, 1));
+                    continue;
+                  }
+                }
                 // Fällige Zeit heute erreicht und noch nicht gelaufen (holt auch einen verpassten Lauf am selben Tag nach)
                 if (due(slot, n) && runs[key] !== n.day) {
                   runs[key] = n.day;
                   writeFileSync(RUNS_FILE, JSON.stringify(runs, null, 1));
-                  await runAgent(a.id).catch((e) => console.error(`[$${a.id}] $${e.stack || e}`));
+                  await runAgent(a.id, { by: "zeitplan" }).catch((e) => console.error(`[$${a.id}] $${e.stack || e}`));
                 }
               }
+            }
+            // Von Hand angeforderte Agenten (Knopf im Dashboard „Agenten“), nacheinander
+            for (let id = control?.takeQueued(); id; id = control?.takeQueued()) {
+              if (!list.some((a) => a.id === id)) continue;
+              control.refresh();
+              await runAgent(id, { by: "von Hand" }).catch((e) => console.error(`[$${id}] $${e.stack || e}`));
+              control.refresh();
             }
           } finally {
             busy = false;
           }
         };
+        // Läuft-Markierungen eines abgebrochenen Laufs entfernen; Steuerung über HA (CONTROL=off schaltet sie ab)
+        clearRunning(agents().map((a) => a.id));
+        const control = process.env.CONTROL === "off" || !process.env.HA_TOKEN ? null : startControl({ agents, readStatus });
+        // Weboberfläche „Zeitplan“ (WEB_PORT, Standard 8080; „aus“ = keine)
+        startWeb();
         // Beim ersten Start keine alten Zeiten von heute nachholen
         const n0 = now();
         const runs = loadRuns();
-        for (const a of agents()) for (const slot of [].concat(a.schedule || [])) if (due(slot, n0) && !runs[`$${a.id}@$${slot}`]) runs[`$${a.id}@$${slot}`] = n0.day;
+        const known = new Set();
+        for (const a of agents())
+          for (const slot of [].concat(a.schedule || [])) {
+            known.add(`$${a.id}@$${slot}`);
+            if (due(slot, n0) && !runs[`$${a.id}@$${slot}`]) runs[`$${a.id}@$${slot}`] = n0.day;
+          }
         writeFileSync(RUNS_FILE, JSON.stringify(runs, null, 1));
         await tick();
         setInterval(tick, 30_000);
@@ -650,7 +786,7 @@ configs:
 
       const [cmd, id] = process.argv.slice(2);
       if (cmd === "list") {
-        for (const a of agents()) console.log(`$${a.enabled === false ? "⏸" : "▶"} $${a.id} – $${a.name || ""} – $${[].concat(a.schedule || []).join(", ") || "ohne Zeitplan"}`);
+        for (const a of agents()) console.log(`$${a.enabled === false ? "⏸" : "▶"} $${a.id} – $${a.name || ""} – $${[].concat(a.schedule || []).join(", ") || "ohne Zeitplan"}$${a.fromFile ? " (zeitplan.conf)" : ""}`);
       } else if (cmd === "run") {
         if (!id) {
           console.error("Aufruf: run <agent-id>");
@@ -663,23 +799,49 @@ configs:
   app_start_sh:
     content: |
       #!/bin/sh
-      # Start im Container: Claude Code bei Bedarf installieren (bleibt im Volume /data), dann den Zeitplan starten.
+      # Start im Container: Claude Code bei Bedarf installieren (bleibt in /data/npm), dann den Zeitplan starten.
       set -e
+      # Als Home-Assistant-Add-on: Einstellungen aus /data/options.json, HA über den Supervisor, Agenten und Zeitplan unter /config
+      if [ -n "$$SUPERVISOR_TOKEN" ] && [ -f /data/options.json ]; then
+        eval "$$(node "$$(dirname "$$0")/addon-env.mjs" /data/options.json)"
+        export HA_URL="$${HA_URL:-http://supervisor/core}" HA_TOKEN="$${HA_TOKEN:-$$SUPERVISOR_TOKEN}"
+        export AGENTS_DIR="$${AGENTS_DIR:-/config/agents}" SCHEDULE_FILE="$${SCHEDULE_FILE:-/config/zeitplan.conf}" DATA_DIR="$${DATA_DIR:-/data}"
+        # Mitgelieferte Agenten nur ergänzen, nie überschreiben – eigene Änderungen bleiben erhalten
+        mkdir -p "$$AGENTS_DIR"
+        for d in "$$DEFAULTS_DIR"/agents/*/; do
+          n=$$(basename "$$d")
+          [ -e "$$AGENTS_DIR/$$n" ] || { cp -r "$$d" "$$AGENTS_DIR/$$n"; echo "Agent $$n nach $$AGENTS_DIR kopiert"; }
+        done
+        [ -e "$$SCHEDULE_FILE" ] || cp "$$DEFAULTS_DIR/zeitplan.conf" "$$SCHEDULE_FILE"
+        echo "Add-on: Agenten in $$AGENTS_DIR, Zeitplan $$SCHEDULE_FILE"
+      fi
       export NPM_CONFIG_PREFIX=/data/npm
       export PATH="/data/npm/bin:$$PATH"
+      # Zugangsdaten aus /data/geheim.env (eine Zeile KEY=Wert); Werte aus Portainer haben Vorrang. Änderungen gelten nach Neustart.
+      SECRETS="$${SECRETS_FILE:-/data/geheim.env}"
+      if [ -f "$$SECRETS" ]; then
+        while IFS='=' read -r k v || [ -n "$$k" ]; do
+          case "$$k" in '' | \#* | *[!A-Za-z0-9_]* | [0-9]*) continue ;; esac
+          v=$$(printf '%s' "$$v" | tr -d '\r')
+          eval "cur=\$${$$k:-}"
+          [ -n "$$cur" ] || export "$$k=$$v"
+        done < "$$SECRETS"
+        echo "Zugangsdaten aus $$SECRETS geladen"
+      fi
       if ! command -v claude >/dev/null 2>&1 || [ "$${CLAUDE_UPDATE:-0}" = "1" ]; then
         echo "Claude Code wird installiert …"
         npm install -g @anthropic-ai/claude-code --no-fund --no-audit
       fi
       echo "Claude Code $$(claude --version 2>/dev/null || echo '?')"
       [ -n "$$HA_TOKEN" ] || echo "WARNUNG: HA_TOKEN fehlt – in Portainer unter Environment variables setzen"
-      [ -n "$$CLAUDE_CODE_OAUTH_TOKEN$$ANTHROPIC_API_KEY" ] || echo "WARNUNG: CLAUDE_CODE_OAUTH_TOKEN fehlt – auf einem PC mit Claude Code „claude setup-token“ ausführen"
+      [ -n "$$CLAUDE_CODE_OAUTH_TOKEN$$ANTHROPIC_API_KEY" ] || echo "WARNUNG: CLAUDE_CODE_OAUTH_TOKEN fehlt – auf einem PC mit Claude Code „claude setup-token“ ausführen (Add-on: Tab Konfiguration)"
       exec node "$$(dirname "$$0")/scheduler.mjs"
   agents_automationen_agent_json:
     content: |
       {
         "name": "Automationen sortieren",
         "description": "Gibt neuen Automationen einen sprechenden Namen, eine Beschreibung, Labels und eine Kategorie.",
+        "icon": "mdi:sort-variant",
         "enabled": true,
         "schedule": [
           "08:00"
@@ -744,8 +906,11 @@ configs:
       {
         "name": "Automations-Doktor",
         "description": "Prüft alle Automationen auf Fehler, fehlende Entitäten und Stillstand und schreibt den Befund in das Dashboard „Automations-Doktor“.",
+        "icon": "mdi:stethoscope",
         "enabled": true,
-        "schedule": ["Sa 09:00"],
+        "schedule": [
+          "Sa 09:00"
+        ],
         "allowedTools": [
           "Bash(node ha.mjs automations health)",
           "Bash(node ha.mjs automations report)",
@@ -773,9 +938,13 @@ configs:
       ```
       {"summary": "Ein Satz zur Gesamtlage.",
        "findings": [
-         {"entity_id": "automation.xyz", "severity": "hoch", "problem": "…", "suggestion": "…"}
+         {"entity_id": "automation.xyz", "severity": "hoch", "problem": "…", "suggestion": "…",
+          "fix": {"summary": "Lautsprecher Büro statt des alten Sonos ansteuern",
+                  "ops": [{"op": "replace", "from": "media_player.alt", "to": "media_player.neu"}]}}
        ]}
       ```
+
+      `fix` ist optional: eine konkrete Änderung, die der Besitzer im Dashboard per Knopf freigeben kann. Danach setzt sie ein zweiter Agent genau so um.
 
       4. Schreib ihn ins Dashboard: `node ha.mjs automations report`. Meldet er `ok: false`, korrigiere die Datei und ruf ihn noch einmal auf.
 
@@ -794,14 +963,82 @@ configs:
       - Gibt es keine echten Befunde, schick `findings: []` mit einer kurzen `summary`. Dann zeigt das Dashboard „keine Befunde“.
       - Du änderst keine Automation. Dafür gibt es auch keinen Befehl.
 
+      ## Empfehlungen (`fix`)
+
+      Gib ein `fix` nur an, wenn die Änderung eindeutig ist und das Problem wirklich löst. Sonst lass es weg, dann bleibt es beim Vorschlag als Text.
+
+      - **summary:** ein Satz, was nach der Änderung anders ist, mit Gerätenamen.
+      - **ops:** die Schritte in dieser Reihenfolge. Erlaubt sind:
+        - `{"op": "replace", "from": "<alte entity_id>", "to": "<neue entity_id>"}`: tauscht die Entität überall in der Automation aus. `to` muss es geben (mit `states` gefunden), und sie muss inhaltlich passen (gleicher Raum, gleiche Geräteart).
+        - `{"op": "remove", "path": "/actions/2"}`: entfernt einen Teil (JSON-Pointer, Zählung ab 0). Nimm das für Schritte mit einer Entität ohne Nachfolger.
+        - `{"op": "set", "path": "/mode", "value": "restart"}`: setzt einen Wert.
+        - `{"op": "disable"}`: schaltet die Automation aus. Das ist der letzte Ausweg, wenn sie ohne die fehlende Entität sinnlos ist.
+      - Pfade beziehen sich auf `raw_config`, wenn die Automation sie hat (Blueprint), sonst auf `config`. Bei Blueprints sind meist nur `replace` (in den Eingaben) oder `disable` sinnvoll.
+      - Bei mehreren `remove` im selben Array zuerst den höchsten Index entfernen.
+      - Kein `fix` bei: „lange nicht ausgelöst“ (das ist nur ein Hinweis), Automationen aus YAML (ohne `id`) und Problemen, die außerhalb der Automation liegen (Gerät offline, Integration kaputt).
+      - `automations report` probiert jedes `fix` am aktuellen Stand aus. Meldet er einen Fehler, korrigiere das `fix` oder lass es weg.
+
       Antworte am Ende mit der Zahl der Befunde je Dringlichkeit.
+  agents_doktor_umsetzer_agent_json:
+    content: |
+      {
+        "name": "Doktor-Umsetzer",
+        "description": "Prüft im Dashboard „Automations-Doktor“ freigegebene Empfehlungen und übernimmt sie in die Automation (mit Sicherung) oder lehnt sie begründet ab.",
+        "icon": "mdi:wrench-check",
+        "enabled": true,
+        "schedule": [
+          "alle 5 min"
+        ],
+        "precheck": "node ha.mjs fixes pending --count",
+        "allowedTools": [
+          "Bash(node ha.mjs fixes pending)",
+          "Bash(node ha.mjs fixes apply:*)",
+          "Bash(node ha.mjs fixes reject:*)",
+          "Bash(node ha.mjs fixes finish)",
+          "Bash(node ha.mjs states:*)"
+        ],
+        "maxTurns": 20
+      }
+  agents_doktor_umsetzer_prompt_md:
+    content: |
+      Du bist der Doktor-Umsetzer für ein Home Assistant (Version 2026.10, deutsche Oberfläche). Du arbeitest allein, niemand antwortet dir. Frag nichts, sondern entscheide.
+
+      Der Automations-Doktor hat Empfehlungen geschrieben, und der Besitzer hat einige davon im Dashboard per Knopf freigegeben. Du prüfst jede Freigabe ein letztes Mal und übernimmst sie dann oder lehnst sie begründet ab. Die Änderung selbst steht fest. Du kannst sie nicht umformulieren, nur übernehmen oder ablehnen.
+
+      ## Ablauf
+
+      1. `node ha.mjs fixes pending` liefert alle freigegebenen Empfehlungen. Jede hat:
+         - `fid`, `name`, `summary`, `problem`, `ops` (die festen Schritte)
+         - `checks.config_unchanged`: Ist die Automation noch auf dem Stand des Befunds?
+         - `checks.errors`: Lassen sich die Schritte anwenden?
+         - `checks.changes`: Was sich ändert
+         - `config_now` und `config_after`: die Automation vorher und nachher
+         - `entities`: Zustand der beteiligten Entitäten
+      2. Prüfe jede Empfehlung:
+         - Ist `config_unchanged` falsch oder `checks.errors` nicht leer, lehnst du ab.
+         - Vergleiche `config_now` mit `config_after`. Ändert sich nur, was `summary` verspricht? Bleibt die Automation sinnvoll, etwa keine leere Aktionsliste und kein Auslöser ohne Entität?
+         - Ist ein neues Ziel aus `replace` gerade `unavailable` oder `unknown` oder passt es inhaltlich nicht (z. B. ein anderer Raum oder eine andere Geräteart), lehnst du ab. Bei Zweifeln hilft `node ha.mjs states <präfix>`.
+      3. Übernehmen: `node ha.mjs fixes apply <fid>`. Das Werkzeug prüft noch einmal, sichert den alten Stand, speichert und kontrolliert, ob die Automation danach verfügbar ist. Sonst stellt es den alten Stand wieder her.
+      4. Ablehnen: `node ha.mjs fixes reject <fid> "<Grund in einem Satz>"`.
+      5. Zum Schluss: `node ha.mjs fixes finish`. Das schickt den Push mit den Ergebnissen.
+
+      ## Regeln
+
+      - Du änderst nur über `fixes apply`. Andere Wege gibt es nicht.
+      - Ein Grund beim Ablehnen ist für den Besitzer gedacht: kurz, konkret, auf Deutsch, mit Gerätenamen.
+      - Lieber ablehnen als etwas Falsches übernehmen. Der Doktor bietet die Empfehlung beim nächsten Lauf erneut an, wenn sie noch passt.
+
+      Antworte am Ende mit der Zahl der übernommenen und abgelehnten Empfehlungen.
   agents_energie_coach_agent_json:
     content: |
       {
         "name": "Energie-Coach",
         "description": "Wertet die letzten 7 Tage (PV, Akku, Netz, Geräte) aus und gibt 1–2 konkrete Tipps.",
+        "icon": "mdi:lightning-bolt",
         "enabled": true,
-        "schedule": ["So 18:00"],
+        "schedule": [
+          "So 18:00"
+        ],
         "env": {
           "ENERGY_ACTIVITY": "binary_sensor.trockner_running,sensor.bosch_dishwasher_betriebszustand,binary_sensor.heizung_kompressor,binary_sensor.evcc_hamm_charging"
         },
@@ -855,8 +1092,11 @@ configs:
       {
         "name": "Log-Detektiv",
         "description": "Liest neue Fehler im HA-Protokoll, erklärt Ursache und Lösung und merkt sich harmlose Meldungen.",
+        "icon": "mdi:text-search",
         "enabled": true,
-        "schedule": ["07:30"],
+        "schedule": [
+          "07:30"
+        ],
         "precheck": "node ha.mjs logs pending --count",
         "allowedTools": [
           "Bash(node ha.mjs logs pending)",

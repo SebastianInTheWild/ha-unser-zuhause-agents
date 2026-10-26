@@ -166,7 +166,7 @@ function editor(item) {
   const e = editing;
   const box = el("div", "editor");
   const seg = el("div", "seg");
-  const modes = item.kind === "statistik" ? [["slots", "Feste Zeit"], ["off", "Aus"]] : [["slots", "Feste Zeiten"], ["every", "In Abständen"], ["off", "Pausiert"]];
+  const modes = [["slots", "Feste Zeiten"], ["every", "In Abständen"], ["off", "Pausiert"]];
   for (const [m, label] of modes) {
     const b = el("button", null, label); b.type = "button"; b.setAttribute("aria-pressed", String(e.mode === m));
     b.onclick = () => { e.mode = m; e.error = ""; render(); };
@@ -189,11 +189,9 @@ function editor(item) {
       if (e.slots.length > 1) { const x = el("button", "x", "×"); x.type = "button"; x.title = "Zeit entfernen"; x.onclick = () => { e.slots.splice(i, 1); render(); }; row.append(x); }
       box.append(row);
     });
-    if (item.kind !== "statistik") {
-      const add = el("button", "link", "+ Weitere Zeit"); add.type = "button";
-      add.onclick = () => { e.slots.push({ days: new Set(DAYS), time: "12:00" }); render(); };
-      box.append(add);
-    }
+    const add = el("button", "link", "+ Weitere Zeit"); add.type = "button";
+    add.onclick = () => { e.slots.push({ days: new Set(DAYS), time: "12:00" }); render(); };
+    box.append(add);
     box.append(el("p", "hint", "Eine Zeit, die heute schon vorbei ist, gilt erst ab morgen."));
   } else if (e.mode === "every") {
     const row = el("div", "slot");
@@ -203,7 +201,7 @@ function editor(item) {
     row.append(n, el("span", null, "Minuten"));
     box.append(row);
   } else {
-    box.append(el("p", "hint", item.kind === "statistik" ? "Die Statistik wird nicht mehr geschickt." : "Der Agent läuft nicht mehr nach Zeitplan – nur noch von Hand (Dashboard „Agenten“)."));
+    box.append(el("p", "hint", "Der Agent läuft nicht mehr nach Zeitplan – nur noch von Hand (Dashboard „Agenten“)."));
   }
   if (e.error) box.append(el("p", "err", e.error));
 
@@ -237,7 +235,7 @@ function card(item) {
   if (item.error) { c.append(el("p", "err", item.error)); return c; }
 
   const chips = el("div", "chips");
-  if (!item.enabled) chips.append(el("span", "chip", item.kind === "statistik" ? "aus" : "pausiert – nur von Hand"));
+  if (!item.enabled) chips.append(el("span", "chip", "pausiert – nur von Hand"));
   else if (!item.schedule.length) chips.append(el("span", "chip", "ohne Zeitplan"));
   else item.schedule.forEach((s) => chips.append(el("span", "chip", describe(s))));
   chips.append(el("span", "source", item.source === "zeitplan.conf" ? "· aus zeitplan.conf" : item.source === "agent.json" ? "· Standard aus agent.json" : `· ${item.source}`));
@@ -255,7 +253,7 @@ function card(item) {
 
   if (editing?.id === item.id) c.append(editor(item));
   else if (item.kind === "agent" && !item.manual && !item.schedule.length) {
-    c.append(el("p", "hint", "Startet über Slack (Links und Fotos im Rezept-Kanal) – braucht keinen Zeitplan."));
+    c.append(el("p", "hint", "Wird von außen gestartet – braucht keinen Zeitplan."));
   } else {
     const b = el("button", "btn", "Ändern"); b.type = "button"; b.onclick = () => startEdit(item);
     const row = el("div", "actions"); row.append(b); c.append(row);

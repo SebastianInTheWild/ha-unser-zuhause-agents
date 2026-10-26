@@ -20,7 +20,20 @@ Ein Docker-Container, in dem KI-Agenten (Claude Code) nach Zeitplan für Home As
 - Vor jeder Änderung sichert er den alten Stand (`/data/automationen/backups/`).
 - Gibt es nichts Neues, startet Claude gar nicht. Dann entstehen auch keine Kosten.
 
-## Einrichten mit Portainer: Ordner auf dem Host (empfohlen)
+## Einrichten als Home-Assistant-Add-on (empfohlen)
+
+Das Repo ist zugleich ein Add-on-Repository (`repository.yaml`, Add-on im Ordner `unser_zuhause_agents/`, für amd64 und aarch64).
+
+1. Einstellungen → Add-ons → Add-on Store → ⋮ → *Repositories* → `https://github.com/SebastianInTheWild/ha-unser-zuhause-agents` hinzufügen.
+2. **Unser Zuhause – Agenten** installieren, unter *Konfiguration* `claude_code_oauth_token` und `notify_persons` setzen, starten.
+
+Ein HA-Token ist nicht nötig, das Add-on nutzt den Supervisor. Die Weboberfläche „Zeitplan“ erscheint als **Agenten** in der Seitenleiste (Ingress, ohne eigenes Passwort und ohne eigene Domain). Agenten und `zeitplan.conf` liegen unter `/addon_configs/…_unser_zuhause_agents/`, Daten und Sicherungen kommen mit in die HA-Backups. Details in [`unser_zuhause_agents/DOCS.md`](unser_zuhause_agents/DOCS.md).
+
+**Image bauen:** `.github/workflows/addon.yml` baut bei jedem Push nach `main` das Image aus `Dockerfile.addon` und legt es unter `ghcr.io/sebastianinthewild/ha-unser-zuhause-agents-{amd64,aarch64}` ab, mit der `version` aus `unser_zuhause_agents/config.yaml` als Tag. Für ein Update die Version erhöhen. Nach dem ersten Lauf die beiden Pakete auf GitHub einmal auf *Public* stellen, sonst kann der Supervisor sie nicht laden.
+
+Die Rezept-Agenten (Tandoor, Slack) gehören nicht mehr hierher, sie liegen im eigenen Repo `ha-unser-zuhause-rezepte`.
+
+## Einrichten mit Portainer: Ordner auf dem Host
 
 `portainer/stack-host.yml` legt alles in **einen Ordner auf dem Docker-Host** (Standard `/home/sebastian/docker/agents`, änderbar mit `AGENTS_HOST_DIR`). Der Container heißt `agents` und läuft als Benutzer 1000. So kannst du alle Dateien direkt bearbeiten, ohne `sudo` und ohne den Stack zu ändern.
 

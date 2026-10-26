@@ -39,7 +39,7 @@ export function clearRunning(ids) {
 }
 
 // quiet: „Nichts zu tun“ nicht protokollieren (für Agenten, die alle paar Minuten prüfen)
-// by: wer den Lauf ausgelöst hat (zeitplan, von Hand, slack …) – nur für die Anzeige
+// by: wer den Lauf ausgelöst hat (zeitplan, von Hand …) – nur für die Anzeige
 export async function runAgent(id, { quiet = false, by = "direkt" } = {}) {
   const started = Date.now();
   let r;

@@ -1,0 +1,43 @@
+# Home-Assistant-Add-on „Unser Zuhause – Agenten“. Das Image baut .github/workflows/addon.yml aus Dockerfile.addon.
+# Neue Version: „version“ erhöhen und nach main pushen – der Workflow baut das Image mit diesem Tag.
+name: Unser Zuhause – Agenten
+version: "1.0.0"
+slug: unser_zuhause_agents
+description: KI-Agenten (Claude Code), die nach Zeitplan für Home Assistant arbeiten
+url: https://github.com/SebastianInTheWild/ha-unser-zuhause-agents
+arch:
+  - amd64
+  - aarch64
+image: ghcr.io/sebastianinthewild/ha-unser-zuhause-agents-{arch}
+init: false
+startup: application
+boot: auto
+# Zugriff auf Home Assistant über den Supervisor (SUPERVISOR_TOKEN) – kein eigener Token nötig
+homeassistant_api: true
+# Weboberfläche „Zeitplan“ in der Seitenleiste
+ingress: true
+ingress_port: 8080
+panel_icon: mdi:robot-outline
+panel_title: Agenten
+panel_admin: true
+# Agenten und zeitplan.conf liegen unter /addon_configs/<slug>/ (File editor, SSH, Samba)
+map:
+  - type: addon_config
+    read_only: false
+backup_exclude:
+  - "*/logs/*"
+options:
+  claude_code_oauth_token: ""
+  notify_persons: []
+  skip_label: Test
+  env: []
+schema:
+  claude_code_oauth_token: password?
+  anthropic_api_key: password?
+  claude_model: str?
+  notify_persons:
+    - str
+  skip_label: str?
+  ha_token: password?
+  env:
+    - "match(^[A-Za-z_][A-Za-z0-9_]*=.*$)"

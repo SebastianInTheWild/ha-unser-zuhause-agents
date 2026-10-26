@@ -21,7 +21,7 @@ if [ -n "$SUPERVISOR_TOKEN" ] && [ -f /data/options.json ]; then
     [ -e "$AGENTS_DIR/$n" ] || { cp -r "$d" "$AGENTS_DIR/$n"; echo "Agent $n nach $AGENTS_DIR kopiert"; }
   done
   [ -e "$SCHEDULE_FILE" ] || cp "$DEFAULTS_DIR/zeitplan.conf" "$SCHEDULE_FILE"
-  echo "Add-on: Agenten in $AGENTS_DIR, Zeitplan $SCHEDULE_FILE"
+  echo "Add-on (Gegenprobe): Agenten in $AGENTS_DIR, Zeitplan $SCHEDULE_FILE"
 fi
 export NPM_CONFIG_PREFIX=/data/npm
 export PATH="/data/npm/bin:$PATH"

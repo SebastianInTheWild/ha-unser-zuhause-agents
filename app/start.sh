@@ -31,5 +31,6 @@ if ! command -v claude >/dev/null 2>&1 || [ "${CLAUDE_UPDATE:-0}" = "1" ]; then
 fi
 echo "Claude Code $(claude --version 2>/dev/null || echo '?')"
 [ -n "$HA_TOKEN" ] || echo "WARNUNG: HA_TOKEN fehlt – läuft das Add-on mit homeassistant_api?"
+# shellcheck disable=SC1111 # deutsche Anführungszeichen im Text sind gewollt
 [ -n "$CLAUDE_CODE_OAUTH_TOKEN$ANTHROPIC_API_KEY" ] || echo "WARNUNG: CLAUDE_CODE_OAUTH_TOKEN fehlt – auf einem PC mit Claude Code „claude setup-token“ ausführen und im Tab Konfiguration eintragen"
 exec node "$(dirname "$0")/scheduler.mjs"

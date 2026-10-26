@@ -19,6 +19,7 @@ WORKDIR /app
 COPY app/ /app/
 COPY agents/ /defaults/agents/
 COPY zeitplan.conf /defaults/zeitplan.conf
+COPY gibt-es-nicht/ /gegenprobe/
 
 LABEL io.hass.type="addon" \
       io.hass.name="Unser Zuhause – Agenten" \

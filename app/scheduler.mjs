@@ -90,7 +90,7 @@ const loadRuns = () => (existsSync(RUNS_FILE) ? JSON.parse(readFileSync(RUNS_FIL
 const summary = (list) => list.map((a) => `${a.id} ${a.enabled === false ? "aus" : [].concat(a.schedule || []).join("/") || "–"}`).join(", ") || "keine";
 
 async function loop() {
-  console.log(`Zeitplan läuft (TZ ${process.env.TZ || "UTC"}, Datei ${SCHEDULE_FILE}${existsSync(SCHEDULE_FILE) ? "" : " fehlt – Zeiten aus agent.json"})`);
+  console.log(`Version ${process.env.ADDON_VERSION || "dev"} · Zeitplan läuft (TZ ${process.env.TZ || "UTC"}, Datei ${SCHEDULE_FILE}${existsSync(SCHEDULE_FILE) ? "" : " fehlt – Zeiten aus agent.json"})`);
   let last = "";
   let busy = false;
   const tick = async () => {

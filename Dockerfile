@@ -8,9 +8,12 @@ RUN apt-get update \
  && npm install -g @anthropic-ai/claude-code \
  && npm cache clean --force
 
+# Version aus unser_zuhause_agents/config.yaml (setzt der Workflow), angezeigt in Weboberfläche und Protokoll
+ARG VERSION=dev
 # Mitgelieferte Agenten und Zeitplan: start.sh kopiert sie beim Start nach /config, sofern dort noch nicht vorhanden
 ENV DEFAULTS_DIR=/defaults \
-    DISABLE_AUTOUPDATER=1
+    DISABLE_AUTOUPDATER=1 \
+    ADDON_VERSION=$VERSION
 
 WORKDIR /app
 COPY app/ /app/

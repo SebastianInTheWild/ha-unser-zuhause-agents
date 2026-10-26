@@ -1,0 +1,22 @@
+configuration:
+  claude_code_oauth_token:
+    name: Claude token
+    description: Run "claude setup-token" on a computer with Claude Code and paste the token here. Uses your Claude subscription.
+  anthropic_api_key:
+    name: Anthropic API key
+    description: Instead of the Claude token; billed per run.
+  claude_model:
+    name: Model
+    description: A specific model for all agents. Leave empty for the default.
+  notify_persons:
+    name: Notify persons
+    description: Persons who receive the push notifications, e.g. person.sebastian. Requires the "Unser Zuhause" integration.
+  skip_label:
+    name: Label to skip
+    description: The "sort automations" agent leaves automations with this label alone.
+  ha_token:
+    name: Own HA token
+    description: Only needed if access through the Supervisor is refused. A long-lived access token from your profile.
+  env:
+    name: Additional settings
+    description: Extra variables as NAME=value, e.g. DRY=1 (show only, change nothing) or CONTROL=off (no status sensors).

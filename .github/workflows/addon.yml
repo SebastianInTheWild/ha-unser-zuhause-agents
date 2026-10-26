@@ -49,6 +49,7 @@ jobs:
           context: .
           file: Dockerfile
           platforms: ${{ matrix.platform }}
+          build-args: VERSION=${{ steps.version.outputs.version }}
           push: true
           tags: |
             ghcr.io/sebastianinthewild/ha-unser-zuhause-agents-${{ matrix.arch }}:${{ steps.version.outputs.version }}

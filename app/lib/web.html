@@ -280,7 +280,7 @@ function card(item) {
 function render() {
   const list = document.getElementById("list");
   list.replaceChildren(...(data?.items?.length ? data.items.map(card) : [el("div", "empty", "Keine Agenten gefunden.")]));
-  if (data) document.getElementById("foot").textContent = `Datei: ${data.file} · Zeitzone: ${data.tz}`;
+  if (data) document.getElementById("foot").textContent = `Version ${data.version} · Datei: ${data.file} · Zeitzone: ${data.tz}`;
 }
 
 async function load() {

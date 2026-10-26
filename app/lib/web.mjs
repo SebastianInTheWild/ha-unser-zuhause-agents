@@ -112,7 +112,7 @@ function overview() {
       queued: queued.includes(id),
     });
   }
-  return { file: SCHEDULE_FILE, tz: process.env.TZ || "UTC", items };
+  return { file: SCHEDULE_FILE, tz: process.env.TZ || "UTC", version: process.env.ADDON_VERSION || "dev", items };
 }
 
 // ---------- HTTP ----------

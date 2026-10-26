@@ -1,0 +1,22 @@
+configuration:
+  claude_code_oauth_token:
+    name: Claude-Token
+    description: Auf einem Rechner mit Claude Code „claude setup-token“ ausführen und den Token hier eintragen. Läuft über dein Claude-Abo.
+  anthropic_api_key:
+    name: Anthropic-API-Schlüssel
+    description: Statt des Claude-Tokens; Abrechnung pro Lauf.
+  claude_model:
+    name: Modell
+    description: Ein bestimmtes Modell für alle Agenten. Leer lassen für den Standard.
+  notify_persons:
+    name: Pushs an
+    description: Personen, die die Pushs bekommen, z. B. person.sebastian. Braucht die Integration „Unser Zuhause“.
+  skip_label:
+    name: Label zum Auslassen
+    description: Automationen mit diesem Label fasst der Agent „Automationen sortieren“ nicht an.
+  ha_token:
+    name: Eigener HA-Token
+    description: Nur nötig, wenn ein Zugriff über den Supervisor abgelehnt wird. Langlebiger Zugriffstoken aus deinem Profil.
+  env:
+    name: Weitere Einstellungen
+    description: Zusätzliche Variablen als NAME=Wert, z. B. DRY=1 (nur anzeigen, nichts ändern) oder CONTROL=off (keine Status-Sensoren).

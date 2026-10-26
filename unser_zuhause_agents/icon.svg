@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Dach und Haus wie im Icon der Integration „Unser Zuhause“, statt des Herzens ein Roboterkopf -->
+  <polygon points="36,240 256,44 476,240 425,240 256,92 87,240" fill="#03A9F4"/>
+  <rect x="112" y="215" width="288" height="241" rx="28" fill="#03A9F4"/>
+  <rect x="249" y="258" width="14" height="40" rx="7" fill="#fff"/>
+  <circle cx="256" cy="256" r="15" fill="#fff"/>
+  <rect x="166" y="292" width="180" height="124" rx="30" fill="#fff"/>
+  <circle cx="217" cy="342" r="18" fill="#03A9F4"/>
+  <circle cx="295" cy="342" r="18" fill="#03A9F4"/>
+  <rect x="224" y="376" width="64" height="12" rx="6" fill="#03A9F4"/>
+</svg>

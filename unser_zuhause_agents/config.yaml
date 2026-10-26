@@ -10,8 +10,6 @@ arch:
   - aarch64
 image: ghcr.io/sebastianinthewild/ha-unser-zuhause-agents-{arch}
 init: false
-startup: application
-boot: auto
 # Zugriff auf Home Assistant über den Supervisor (SUPERVISOR_TOKEN) – kein eigener Token nötig
 homeassistant_api: true
 # Weboberfläche „Zeitplan“ in der Seitenleiste
@@ -19,7 +17,6 @@ ingress: true
 ingress_port: 8080
 panel_icon: mdi:robot-outline
 panel_title: Agenten
-panel_admin: true
 # Agenten liegen unter /addon_configs/<slug>/ (File editor, SSH, Samba); den Zeitplan pflegt die Weboberfläche
 map:
   - type: addon_config

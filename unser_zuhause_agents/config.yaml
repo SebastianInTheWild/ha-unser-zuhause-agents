@@ -1,4 +1,4 @@
-# Home-Assistant-Add-on „Unser Zuhause – Agenten“. Das Image baut .github/workflows/addon.yml aus Dockerfile.addon.
+# Home-Assistant-Add-on „Unser Zuhause – Agenten“. Das Image baut .github/workflows/addon.yml aus Dockerfile.
 # Neue Version: „version“ erhöhen und nach main pushen – der Workflow baut das Image mit diesem Tag.
 name: Unser Zuhause – Agenten
 version: "1.0.0"

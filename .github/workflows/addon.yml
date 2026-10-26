@@ -10,7 +10,7 @@ on:
       - app/**
       - agents/**
       - zeitplan.conf
-      - Dockerfile.addon
+      - Dockerfile
       - unser_zuhause_agents/config.yaml
       - .github/workflows/addon.yml
   workflow_dispatch:
@@ -44,7 +44,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile.addon
+          file: Dockerfile
           platforms: ${{ matrix.platform }}
           push: true
           tags: |

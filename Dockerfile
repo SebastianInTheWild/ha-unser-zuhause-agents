@@ -1,4 +1,4 @@
-# Unser Zuhause – Agenten: Claude Code ohne Bildschirm, nach Zeitplan, für Home Assistant
+# Unser Zuhause – Agenten als Home-Assistant-Add-on. Gebaut von .github/workflows/addon.yml (amd64, aarch64).
 # Autor: SebastianInTheWild · MIT-Lizenz
 FROM node:22-bookworm-slim
 
@@ -8,16 +8,17 @@ RUN apt-get update \
  && npm install -g @anthropic-ai/claude-code \
  && npm cache clean --force
 
-ENV AGENTS_DIR=/agents \
-    DATA_DIR=/data \
-    TZ=Europe/Berlin \
+# Mitgelieferte Agenten und Zeitplan: start.sh kopiert sie beim Start nach /config, sofern dort noch nicht vorhanden
+ENV DEFAULTS_DIR=/defaults \
     DISABLE_AUTOUPDATER=1
 
 WORKDIR /app
 COPY app/ /app/
-COPY agents/ /agents/
-RUN mkdir -p /data && chown node:node /data
+COPY agents/ /defaults/agents/
+COPY zeitplan.conf /defaults/zeitplan.conf
 
-USER node
-VOLUME /data
-CMD ["node", "/app/scheduler.mjs"]
+LABEL io.hass.type="addon" \
+      io.hass.name="Unser Zuhause – Agenten" \
+      org.opencontainers.image.source="https://github.com/SebastianInTheWild/ha-unser-zuhause-agents"
+
+CMD ["sh", "/app/start.sh"]

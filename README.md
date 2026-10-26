@@ -1,6 +1,6 @@
 # Unser Zuhause – Agenten
 
-Ein Docker-Container, in dem KI-Agenten (Claude Code) nach Zeitplan für Home Assistant arbeiten. Jeder Agent ist ein Ordner unter `agents/` mit einer Anweisung und einem Zeitplan. Neue Agenten legst du als neuen Ordner an, ohne den Container neu zu bauen.
+Ein Home-Assistant-Add-on, in dem KI-Agenten (Claude Code) nach Zeitplan für Home Assistant arbeiten. Jeder Agent ist ein Ordner unter `agents/` mit einer Anweisung und einem Zeitplan. Neue Agenten legst du als neuen Ordner an, ohne das Add-on neu zu bauen.
 
 | Agent | Zeit | Was er macht |
 |---|---|---|
@@ -20,86 +20,41 @@ Ein Docker-Container, in dem KI-Agenten (Claude Code) nach Zeitplan für Home As
 - Vor jeder Änderung sichert er den alten Stand (`/data/automationen/backups/`).
 - Gibt es nichts Neues, startet Claude gar nicht. Dann entstehen auch keine Kosten.
 
-## Einrichten als Home-Assistant-Add-on (empfohlen)
+## Installieren
 
-Das Repo ist zugleich ein Add-on-Repository (`repository.yaml`, Add-on im Ordner `unser_zuhause_agents/`, für amd64 und aarch64).
+Für amd64 und aarch64 (Home Assistant OS oder Supervised).
 
 1. Einstellungen → Add-ons → Add-on Store → ⋮ → *Repositories* → `https://github.com/SebastianInTheWild/ha-unser-zuhause-agents` hinzufügen.
-2. **Unser Zuhause – Agenten** installieren, unter *Konfiguration* `claude_code_oauth_token` und `notify_persons` setzen, starten.
+2. **Unser Zuhause – Agenten** installieren.
+3. Unter *Konfiguration* eintragen:
+   - **claude_code_oauth_token:** Auf einem Rechner mit Claude Code `claude setup-token` ausführen. Der Token läuft über dein Claude-Abo. Alternativ `anthropic_api_key` (Abrechnung pro Lauf).
+   - **notify_persons:** Wer die Pushs bekommt, z. B. `person.sebastian`. Dafür braucht es die Integration [Unser Zuhause](https://github.com/SebastianInTheWild/ha-unser-zuhause-integration).
+4. Starten.
 
-Ein HA-Token ist nicht nötig, das Add-on nutzt den Supervisor. Die Weboberfläche „Zeitplan“ erscheint als **Agenten** in der Seitenleiste (Ingress, ohne eigenes Passwort und ohne eigene Domain). Den Zeitplan pflegst du nur über die Weboberfläche. Die Agenten-Ordner liegen unter `/addon_configs/…_unser_zuhause_agents/agents/`, Daten und Sicherungen kommen mit in die HA-Backups. Details in [`unser_zuhause_agents/DOCS.md`](unser_zuhause_agents/DOCS.md).
+Ein HA-Token ist nicht nötig, das Add-on nutzt den Supervisor. Alle Einstellungen stehen in [`unser_zuhause_agents/DOCS.md`](unser_zuhause_agents/DOCS.md).
 
-**Image bauen:** `.github/workflows/addon.yml` baut bei jedem Push nach `main` das Image aus `Dockerfile.addon` und legt es unter `ghcr.io/sebastianinthewild/ha-unser-zuhause-agents-{amd64,aarch64}` ab, mit der `version` aus `unser_zuhause_agents/config.yaml` als Tag. Für ein Update die Version erhöhen. Nach dem ersten Lauf die beiden Pakete auf GitHub einmal auf *Public* stellen, sonst kann der Supervisor sie nicht laden.
+## Zeitplan
 
-Die Rezept-Agenten (Tandoor, Slack) gehören nicht mehr hierher, sie liegen im eigenen Repo `ha-unser-zuhause-rezepte`.
+Die Weboberfläche „Zeitplan“ erscheint als **Agenten** in der Seitenleiste (Ingress, nur für Admins). Dort stellst du je Agent feste Zeiten, Wochentage oder Abstände ein oder pausierst ihn. Änderungen gelten nach spätestens 30 Sekunden, ohne Neustart. Eine neu eingetragene Zeit, die heute schon vorbei ist, gilt erst ab morgen. Verpasst das Add-on eine Uhrzeit, weil es aus war, holt es den Lauf am selben Tag nach.
 
-## Einrichten mit Portainer: Ordner auf dem Host
+## Umzug aus der Docker-Variante
 
-`portainer/stack-host.yml` legt alles in **einen Ordner auf dem Docker-Host** (Standard `/home/sebastian/docker/agents`, änderbar mit `AGENTS_HOST_DIR`). Der Container heißt `agents` und läuft als Benutzer 1000. So kannst du alle Dateien direkt bearbeiten, ohne `sudo` und ohne den Stack zu ändern.
+Die frühere Docker/Portainer-Fassung (mit Rezept-Agenten) liegt in `ha-unser-zuhause-agents-old`.
 
-```
-/home/sebastian/docker/agents/
-  zeitplan.conf   wann welcher Agent läuft
-  agents/         ein Ordner je Agent (agent.json + prompt.md), _vorlage zum Kopieren
-  app/            Programm
-  daten/          Merklisten, Logs, Sicherungen je Agent
-  npm/            Claude Code
-```
-
-**Zeiten ändern** in `zeitplan.conf`. Die Änderung gilt nach spätestens 30 Sekunden, ohne Neustart. Der Container-Log meldet dann „Zeitplan geändert“.
-
-```
-automationen       = 08:00
-log-detektiv       = 07:30
-energie-coach      = So 18:00
-automations-doktor = Sa 09:00; Mi 18:00   # mehrere Zeiten mit ;
-mein-agent         = aus                  # pausiert
-```
-
-Ein Eintrag in `zeitplan.conf` hat Vorrang vor `schedule`/`enabled` aus der `agent.json`. Fehlt ein Agent in der Datei, gilt seine `agent.json`. Eine neu eingetragene Zeit, die heute schon vorbei ist, gilt erst ab morgen.
-
-**Neuer Agent:** `agents/_vorlage` kopieren, z. B. `cp -r agents/_vorlage agents/batterien`, dann `prompt.md` und `agent.json` anpassen (`"enabled": true`) und in `zeitplan.conf` eine Zeile `batterien = 07:00` ergänzen. Ein Neustart ist nicht nötig.
-
-## Einrichten mit Portainer (ohne Build)
-
-`portainer/stack.yml` ist ein fertiger Stack ohne eigenes Image: Er nutzt `node:22-bookworm-slim`, die App- und Agenten-Dateien stecken direkt im Stack, und Claude Code installiert sich beim ersten Start ins Volume.
-
-1. Portainer → Stacks → *Add stack* → *Web editor* → Inhalt von `portainer/stack.yml` einfügen.
-2. Unter *Environment variables* `HA_TOKEN` und `CLAUDE_CODE_OAUTH_TOKEN` setzen (optional `HA_URL`, `NOTIFY_PERSONS`).
-3. *Deploy the stack*.
-
-Nach Änderungen an `app/` oder `agents/` die Datei mit `node tools/build-stack.mjs` neu erzeugen und den Stack in Portainer damit aktualisieren.
-
-**Volume-Variante** (`portainer/stack-volume.yml`): Programm und Agenten liegen im Volume unter `/data/app` und `/data/agents`. Updates und neue Agenten kommen dann ohne Stack-Änderung dazu: Dateien ins Volume legen, Container neu starten. Das ist praktisch, weil eine Stack-Änderung über die Portainer-API die Umgebungsvariablen (Tokens) neu setzen würde. Claude Code aktualisierst du mit der Variable `CLAUDE_UPDATE=1` und einem Neustart.
-
-## Einrichten mit Docker Compose
-
-1. Ordner auf den Docker-Host kopieren.
-2. `.env.example` nach `.env` kopieren und ausfüllen:
-   - **HA_TOKEN:** In Home Assistant unter Profil → Sicherheit → *Langlebige Zugriffstoken* einen Token „Agenten“ erstellen.
-   - **CLAUDE_CODE_OAUTH_TOKEN:** Auf einem Rechner mit Claude Code `claude setup-token` ausführen. Der Token läuft über dein Claude-Abo.
-   - **NOTIFY_PERSONS:** Wer die Pushs bekommt, z. B. `person.sebastian`. Dafür braucht es die Integration [Unser Zuhause](https://github.com/SebastianInTheWild/ha-unser-zuhause-integration).
-3. Starten:
-
-```sh
-docker compose up -d --build
-docker compose logs -f
-```
+1. Add-on installieren, aber noch nicht starten.
+2. Nach `/addon_configs/<slug>_unser_zuhause_agents/` kopieren (File editor, SSH oder Samba):
+   - angepasste Agenten-Ordner nach `agents/`
+   - den **Inhalt** des alten `daten/`-Ordners und die alte `zeitplan.conf` nach `import/`
+3. Alten Container stoppen, sonst laufen die Agenten doppelt.
+4. Add-on starten. Es übernimmt `import/` einmalig (Merklisten, Sicherungen, Zeitplan) und löscht den Ordner danach.
 
 ## Bedienen
 
-```sh
-docker compose exec agents node /app/scheduler.mjs list              # Agenten und Zeiten
-docker compose exec agents node /app/scheduler.mjs run automationen  # sofort einmal laufen lassen
-docker compose exec agents sh -c 'DRY=1 node /app/scheduler.mjs run automationen'  # nur zeigen, nichts ändern
-docker compose exec agents ls /data/automationen/logs                # Logs je Tag
-```
+- **Sofort starten:** Knopf **Jetzt starten** im Dashboard „Agenten“ (siehe unten).
+- **Protokoll:** Tab *Protokoll* des Add-ons, dazu Logs je Agent und Tag in den Add-on-Daten (`/data/<agent>/logs`).
+- **Nur ausprobieren:** In der Option `env` `DRY=1` setzen, dann zeigen die Agenten nur, was sie ändern würden. Zum Ausprobieren an bestehenden Automationen zusätzlich `FORCE_IDS=automation.a,automation.b`.
 
-Zum Ausprobieren an bestehenden Automationen: `FORCE_IDS=automation.a,automation.b` zusammen mit `DRY=1` setzen.
-
-Verpasst der Container eine Uhrzeit, weil er aus war, holt er den Lauf am selben Tag nach, sobald er wieder läuft.
-
-### Dashboard „Agenten“ in Home Assistant
+## Dashboard „Agenten“ in Home Assistant
 
 Der Scheduler legt in Home Assistant selbst ein Dashboard **Agenten** an (nur für Admins, in der Seitenleiste). Es zeigt je Agent:
 
@@ -109,17 +64,18 @@ Der Scheduler legt in Home Assistant selbst ein Dashboard **Agenten** an (nur f�
 
 Ein Druck auf den Knopf reiht den Agenten ein. Er startet innerhalb von etwa 30 Sekunden, sobald kein anderer Agent läuft. Die Vorprüfung gilt auch hier: Gibt es nichts zu tun, startet Claude nicht.
 
-- Es gibt keinen offenen Port. Der Container fragt Home Assistant ab, die Anmeldung läuft über HA.
+- Es gibt keinen offenen Port. Das Add-on fragt Home Assistant über den Supervisor ab.
 - Agenten mit `"manual": false` in der `agent.json` bekommen keinen Knopf, ihr Status wird trotzdem angezeigt.
-- Auch pausierte Agenten (`aus` in `zeitplan.conf`) lassen sich von Hand starten.
+- Auch pausierte Agenten (in der Weboberfläche) lassen sich von Hand starten.
 - Das Dashboard wird bei neuen oder geänderten Agenten neu geschrieben. Eigene Änderungen daran gehen dabei verloren.
-- `CONTROL=off` schaltet die Steuerung ab. `CONTROL_DASHBOARD` ändert die Adresse (Standard `dashboard-agenten`, Home Assistant verlangt einen Bindestrich).
+- In der Option `env`: `CONTROL=off` schaltet die Steuerung ab. `CONTROL_DASHBOARD` ändert die Adresse (Standard `dashboard-agenten`, Home Assistant verlangt einen Bindestrich).
 
 ## Eigenen Agenten anlegen
 
-1. `agents/_vorlage` kopieren, z. B. nach `agents/batterien`. Ordner mit `_` am Anfang werden ignoriert.
+1. Unter `/addon_configs/<slug>_unser_zuhause_agents/agents/` den Ordner `_vorlage` kopieren, z. B. nach `batterien`. Ordner mit `_` am Anfang werden ignoriert.
 2. In `prompt.md` beschreiben, was der Agent tun soll.
-3. In `agent.json` einstellen:
+3. In `agent.json` die Felder aus der Tabelle einstellen.
+4. In der Weboberfläche die Zeit einstellen. Ein Neustart ist nicht nötig.
 
 | Feld | Bedeutung |
 |---|---|

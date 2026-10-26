@@ -178,7 +178,7 @@ export function startWeb() {
       send(res, 500, { error: e.message });
     }
   });
-  server.listen(Number(port), () => console.log(`Weboberfläche „Zeitplan“ auf Port ${port}${process.env.WEB_PASSWORT ? " (mit Passwort)" : " (ohne Passwort – WEB_PASSWORT in geheim.env setzen)"}`));
+  server.listen(Number(port), () => console.log(`Weboberfläche „Zeitplan“ auf Port ${port}${process.env.WEB_PASSWORT ? " (mit Passwort)" : " (ohne Passwort)"}`));
   server.on("error", (e) => console.error(`Weboberfläche: ${e.message}`));
   return server;
 }

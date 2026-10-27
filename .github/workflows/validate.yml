@@ -44,6 +44,8 @@ jobs:
           shopt -s nullglob
           files=(tests/*.test.mjs)
           if [ ${#files[@]} -gt 0 ]; then node --test "${files[@]}"; else echo "keine Tests"; fi
+      - name: Mitgelieferte Fassungen (agents/.versionen.json)
+        run: node app/agents-sync.mjs --check agents
       - name: Agenten und Zeitplan
         run: AGENTS_DIR=agents DATA_DIR="$RUNNER_TEMP/data" SCHEDULE_FILE=zeitplan.conf node app/scheduler.mjs list
       - name: Einstellungen des Add-ons

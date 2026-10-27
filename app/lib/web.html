@@ -77,6 +77,10 @@
   .toast { position: fixed; top: 56px; left: 50%; transform: translate(-50%, -12px); opacity: 0; max-width: 92%; background: var(--tile); color: var(--on-primary); padding: var(--md) var(--lg); border-radius: var(--r-lg); font-size: 15px; transition: opacity .18s ease-out, transform .22s ease-out; pointer-events: none; z-index: 10; }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
   .toast.error { background: var(--danger); }
+  .card.off { background: var(--pearl); }
+  .card.off .title, .card.off .desc { color: var(--ink-48); }
+  .btn.quiet { border-color: var(--hairline); color: var(--ink-80); }
+  .chip a { color: var(--primary); text-decoration: none; }
   .empty { text-align: center; padding: var(--huge) var(--xl); color: var(--ink-48); }
   footer { font-size: 12px; color: var(--ink-48); padding: 0 0 var(--xxxl); }
   @media (max-width: 640px) { h1 { font-size: 34px; } .head { flex-direction: column; } }
@@ -87,7 +91,7 @@
 <main class="wrap">
   <header class="hero">
     <h1>Zeitplan</h1>
-    <p class="sub">Wann deine Agenten laufen. Änderungen landen in <code>zeitplan.conf</code> und gelten nach spätestens 30 Sekunden – ohne Neustart.</p>
+    <p class="sub">Wann deine Agenten laufen – und welche überhaupt. Änderungen landen in <code>zeitplan.conf</code> und gelten nach spätestens 30 Sekunden, ohne Neustart. Ein deaktivierter Agent läuft gar nicht mehr, auch nicht von Hand, und sein Dashboard in Home Assistant verschwindet.</p>
   </header>
   <div class="list" id="list"><div class="empty">Lade …</div></div>
   <footer id="foot"></footer>
@@ -160,13 +164,19 @@ async function startNow(item) {
     toast(`${item.name}: startet innerhalb von 30 Sekunden`);
   } catch (err) { toast(err.message, true); }
 }
-async function send(item, payload) {
+async function toggle(item) {
+  if (item.disabled) return send(item, { mode: "enable" }, "aktiviert");
+  const dash = item.dashboard ? ` Sein Dashboard „${item.dashboard.title}“ wird aus Home Assistant entfernt (die Daten bleiben, beim Aktivieren kommt es wieder).` : "";
+  if (!confirm(`${item.name} deaktivieren? Er läuft dann weder nach Zeitplan noch von Hand.${dash}`)) return;
+  await send(item, { mode: "disable" }, "deaktiviert");
+}
+async function send(item, payload, done = "gespeichert") {
   try {
     const r = await fetch(`api/plan/${encodeURIComponent(item.id)}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || r.statusText);
     data = j; editing = null; render();
-    toast(`${item.name}: gespeichert`);
+    toast(`${item.name}: ${done}`);
   } catch (err) {
     if (editing) { editing.error = err.message; render(); } else toast(err.message, true);
   }
@@ -230,14 +240,14 @@ function editor(item) {
 }
 
 function card(item) {
-  const c = el("article", "card" + (editing?.id === item.id ? " editing" : ""));
+  const c = el("article", "card" + (editing?.id === item.id ? " editing" : "") + (item.disabled ? " off" : ""));
   const head = el("div", "head");
   const left = el("div");
   left.append(el("h2", "title", item.name));
   if (item.description) left.append(el("p", "desc", item.description));
   head.append(left);
   if (item.kind === "agent") {
-    const [text, cls] = item.running ? ["läuft gerade", "run"] : item.last ? RESULT[item.last.result] || [item.last.result, "idle"] : ["noch nie gelaufen", "idle"];
+    const [text, cls] = item.running ? ["läuft gerade", "run"] : item.disabled ? ["deaktiviert", "idle"] : item.last ? RESULT[item.last.result] || [item.last.result, "idle"] : ["noch nie gelaufen", "idle"];
     head.append(el("span", "badge " + cls, text));
   }
   c.append(head);
@@ -245,10 +255,15 @@ function card(item) {
   if (item.error) { c.append(el("p", "err", item.error)); return c; }
 
   const chips = el("div", "chips");
-  if (!item.enabled) chips.append(el("span", "chip", "pausiert – nur von Hand"));
+  if (item.disabled) chips.append(el("span", "chip", "deaktiviert"));
+  else if (!item.enabled) chips.append(el("span", "chip", "pausiert – nur von Hand"));
   else if (!item.schedule.length) chips.append(el("span", "chip", "ohne Zeitplan"));
   else item.schedule.forEach((s) => chips.append(el("span", "chip", describe(s))));
   chips.append(el("span", "source", item.source === "zeitplan.conf" ? "· aus zeitplan.conf" : item.source === "agent.json" ? "· Standard aus agent.json" : `· ${item.source}`));
+  if (item.dashboard && !item.disabled) {
+    const d = el("span", "chip"); const a = el("a", null, `Dashboard „${item.dashboard.title}“`);
+    a.href = `/${item.dashboard.url}`; a.target = "_top"; d.append(a); chips.append(d);
+  }
   c.append(chips);
 
   const meta = el("div", "meta");
@@ -261,7 +276,13 @@ function card(item) {
   }
   c.append(meta);
 
-  if (editing?.id === item.id) c.append(editor(item));
+  if (item.disabled) {
+    const on = el("button", "btn primary", "Aktivieren"); on.type = "button"; on.onclick = () => toggle(item);
+    const row = el("div", "actions"); row.append(on);
+    const back = item.previous ? item.previous : item.default.enabled ? item.default.schedule : [];
+    row.append(el("span", "hint", back.length ? `danach wieder: ${back.map(describe).join(" · ")}` : "danach nur von Hand"));
+    c.append(row);
+  } else if (editing?.id === item.id) c.append(editor(item));
   else if (item.kind === "agent" && !item.manual && !item.schedule.length) {
     c.append(el("p", "hint", "Wird von außen gestartet – braucht keinen Zeitplan."));
   } else {
@@ -271,6 +292,10 @@ function card(item) {
       const go = el("button", "btn", item.running ? "Läuft …" : item.queued ? "Startet gleich …" : "Jetzt starten"); go.type = "button";
       go.disabled = item.running || item.queued; go.onclick = () => startNow(item);
       row.append(go);
+    }
+    if (item.kind === "agent") {
+      const off = el("button", "btn quiet", "Deaktivieren"); off.type = "button"; off.onclick = () => toggle(item);
+      row.append(el("span", "spacer"), off);
     }
     c.append(row);
   }

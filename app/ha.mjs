@@ -87,6 +87,7 @@ async function registries(call) {
         last_triggered: s.attributes.last_triggered,
         category: catName[e.categories?.automation] || null,
         labels: (e.labels || []).map((l) => labelName[l]).filter(Boolean),
+        icon: e.icon || null,
       };
     });
   // Zur Auswahl stehen nur Kategorien und Labels, die schon an Automationen hängen (so bleibt der Stil einheitlich;
@@ -112,6 +113,19 @@ async function pendingList(call, reg) {
   );
 }
 
+// Schon sortierte Automationen ohne Icon (nicht übersprungene, ohne Test-Label): bekommen nur noch ein Icon
+async function iconPendingList(call, reg) {
+  const state = loadState();
+  return reg.automations.filter(
+    (a) =>
+      a.id && !a.icon && !FORCE.includes(a.entity_id) &&
+      state.processed[a.id] && !state.processed[a.id].skipped &&
+      !a.labels.some((l) => l.toLowerCase() === TEST_LABEL),
+  );
+}
+
+const ICON = /^mdi:[a-z0-9]+(-[a-z0-9]+)*$/;
+
 function entityRefs(cfg, reg) {
   const ids = new Set(JSON.stringify(cfg).match(/\b[a-z_]+\.[a-z0-9_]+\b/g) || []);
   const refs = {};
@@ -134,13 +148,13 @@ async function automations(cmd, args) {
   const call = await connect();
   try {
     const reg = await registries(call);
-    if (cmd === "health" || cmd === "report") return await doctor(call, reg, cmd, args);
+    if (cmd === "health" || cmd === "report" || cmd === "dashboard") return await doctor(call, reg, cmd, args);
     if (cmd === "context") {
       const state = loadState();
       const examples = [];
       for (const a of reg.automations.filter((x) => x.id && state.processed[x.id])) {
         const cfg = await rest("GET", `config/automation/config/${a.id}`).catch(() => ({}));
-        examples.push({ name: a.name, description: cfg.description || "", category: a.category, labels: a.labels });
+        examples.push({ name: a.name, description: cfg.description || "", category: a.category, labels: a.labels, icon: a.icon });
       }
       return out({
         categories: reg.categories.map((c) => c.name),
@@ -153,8 +167,14 @@ async function automations(cmd, args) {
     }
     if (cmd === "pending") {
       const list = await pendingList(call, reg);
-      if (args.includes("--count")) return console.log(list.length);
+      const iconOnly = await iconPendingList(call, reg);
+      if (args.includes("--count")) return console.log(list.length + iconOnly.length);
       const res = [];
+      // Nur Icon fehlt: kurzer Eintrag mit Inhalt, damit das Icon zum Zweck passt
+      for (const a of iconOnly) {
+        const cfg = await rest("GET", `config/automation/config/${a.id}`).catch(() => ({}));
+        res.push({ ...a, todo: "icon", description: cfg.description || "", triggers: cfg.triggers ?? cfg.trigger, actions: cfg.actions ?? cfg.action, use_blueprint: cfg.use_blueprint?.path });
+      }
       for (const a of list) {
         const cfg = await rest("GET", `config/automation/config/${a.id}`);
         let blueprint;
@@ -168,7 +188,7 @@ async function automations(cmd, args) {
             .then((r) => ({ path: cfg.use_blueprint.path, resolved: r.substituted_config }))
             .catch((e) => ({ path: cfg.use_blueprint.path, error: e.message }));
         }
-        res.push({ ...a, description: cfg.description || "", config: cfg, blueprint, entities: entityRefs(blueprint?.resolved || cfg, reg) });
+        res.push({ ...a, todo: "sortieren", description: cfg.description || "", config: cfg, blueprint, entities: entityRefs(blueprint?.resolved || cfg, reg) });
       }
       return out(res);
     }
@@ -206,6 +226,7 @@ async function automations(cmd, args) {
 
 async function apply(call, reg, items, create) {
   const pending = new Map((await pendingList(call, reg)).map((a) => [a.entity_id, a]));
+  const iconOnly = new Map((await iconPendingList(call, reg)).map((a) => [a.entity_id, a]));
   const catId = Object.fromEntries(reg.categories.map((c) => [c.name.toLowerCase(), c.category_id]));
   const labelId = Object.fromEntries(reg.labels.map((l) => [l.name.toLowerCase(), l.label_id]));
   // Erst alles prüfen, dann ändern – ein fehlerhafter Plan ändert nichts
@@ -269,8 +290,13 @@ async function apply(call, reg, items, create) {
   }
 
   for (const it of items) {
+    if (iconOnly.has(it.entity_id)) {
+      if (!ICON.test(it.icon || "")) errors.push(`${it.entity_id}: icon fehlt oder sieht nicht wie mdi:name aus`);
+      continue;
+    }
     if (!pending.has(it.entity_id)) errors.push(`${it.entity_id}: nicht in der Liste der unbearbeiteten Automationen`);
     if (it.skip) continue;
+    if (!ICON.test(it.icon || "")) errors.push(`${it.entity_id}: icon fehlt oder sieht nicht wie mdi:name aus`);
     if (!it.name?.trim()) errors.push(`${it.entity_id}: name fehlt`);
     if (!it.description?.trim()) errors.push(`${it.entity_id}: description fehlt`);
     if (it.category && !catId[it.category.toLowerCase()]) errors.push(`${it.entity_id}: Kategorie „${it.category}“ gibt es nicht`);
@@ -296,6 +322,14 @@ async function apply(call, reg, items, create) {
   const backup = {};
   const done = [];
   for (const it of items) {
+    // Nur Icon nachsetzen: Name, Beschreibung, Labels und Kategorie bleiben
+    if (iconOnly.has(it.entity_id)) {
+      const a = iconOnly.get(it.entity_id);
+      backup[a.entity_id] = { registry: { icon: reg.ent[a.entity_id]?.icon ?? null } };
+      if (!DRY) await call({ type: "config/entity_registry/update", entity_id: a.entity_id, icon: it.icon });
+      done.push({ entity_id: a.entity_id, name: a.name, icon: it.icon, iconOnly: true });
+      continue;
+    }
     const a = pending.get(it.entity_id);
     if (it.skip) {
       done.push({ entity_id: it.entity_id, skipped: it.reason || true });
@@ -304,16 +338,16 @@ async function apply(call, reg, items, create) {
     }
     const cfg = await rest("GET", `config/automation/config/${a.id}`);
     const entry = reg.ent[a.entity_id] || {};
-    backup[a.entity_id] = { config: structuredClone(cfg), registry: { name: entry.name, labels: entry.labels, categories: entry.categories } };
+    backup[a.entity_id] = { config: structuredClone(cfg), registry: { name: entry.name, labels: entry.labels, categories: entry.categories, icon: entry.icon ?? null } };
     const before = contentOf(cfg);
     cfg.alias = it.name.trim();
     cfg.description = it.description.trim();
     if (contentOf(cfg) !== before) throw new Error("Interner Fehler: Inhalt würde sich ändern");
     const labels = [...new Set([...(entry.labels || []), ...(it.labels || []).map((l) => labelId[l.toLowerCase()])])];
-    const update = { type: "config/entity_registry/update", entity_id: a.entity_id, labels };
+    const update = { type: "config/entity_registry/update", entity_id: a.entity_id, labels, icon: it.icon };
     if (it.category) update.categories = { ...(entry.categories || {}), automation: catId[it.category.toLowerCase()] };
     if (entry.name) update.name = null; // Namensüberschreibung entfernen, damit der neue Name sichtbar ist
-    const change = { entity_id: a.entity_id, from: a.name, name: cfg.alias, category: it.category || a.category, labels: it.labels || [] };
+    const change = { entity_id: a.entity_id, from: a.name, name: cfg.alias, category: it.category || a.category, labels: it.labels || [], icon: it.icon };
     if (!DRY) {
       await rest("POST", `config/automation/config/${a.id}`, cfg);
       const check = await rest("GET", `config/automation/config/${a.id}`);
@@ -332,11 +366,16 @@ async function apply(call, reg, items, create) {
   saveState(state);
   const check = await rest("POST", "config/core/check_config");
 
-  const changed = done.filter((d) => !d.skipped);
-  if (changed.length) {
+  const changed = done.filter((d) => !d.skipped && !d.iconOnly);
+  const icons = done.filter((d) => d.iconOnly);
+  if (changed.length || icons.length) {
     const lines = changed.map((d) => `• ${d.name} → ${d.category || "ohne Kategorie"}${d.labels.length ? ` (${d.labels.join(", ")})` : ""}`);
+    if (icons.length) lines.push(`Icon nachgesetzt: ${icons.map((d) => d.name).join(", ")}`);
     if (created.length) lines.push(`Neu angelegt: ${created.join(", ")}`);
-    await notify(call, `🤖 ${changed.length} Automation${changed.length === 1 ? "" : "en"} sortiert`, lines.join("\n"));
+    const title = changed.length
+      ? `🤖 ${changed.length} Automation${changed.length === 1 ? "" : "en"} sortiert`
+      : `🤖 ${icons.length} Automation${icons.length === 1 ? "" : "en"} mit Icon`;
+    await notify(call, title, lines.join("\n"));
   }
   return { ok: true, created, reused: toCreate.reused, done, check: check.result, backup: `backups/${stamp}.json` };
 }
@@ -367,7 +406,7 @@ async function main() {
     call.close();
     return out({ ok: true });
   }
-  console.error("Befehle: states | notify | automations context|pending|apply|init|health|report | logs pending|harmless|report | energy week|report | fixes pending|apply|reject|finish | batteries status|report | updates pending|notes|report | devices check|report|ignored|unignore");
+  console.error("Befehle: states | notify | automations context|pending|apply|init|health|report|dashboard | logs pending|harmless|report|dashboard | energy week|report | fixes pending|apply|reject|finish | batteries status|report | updates pending|notes|report | devices check|report|ignored|unignore");
   process.exit(2);
 }
 

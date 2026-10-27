@@ -14,12 +14,8 @@ if [ -n "$SUPERVISOR_TOKEN" ] && [ -f /data/options.json ]; then
     rm -rf /config/import
     echo "Import: alte Daten nach $DATA_DIR übernommen, /config/import gelöscht"
   fi
-  # Mitgelieferte Agenten nur ergänzen, nie überschreiben – eigene Änderungen bleiben erhalten
-  mkdir -p "$AGENTS_DIR"
-  for d in "$DEFAULTS_DIR"/agents/*/; do
-    n=$(basename "$d")
-    [ -e "$AGENTS_DIR/$n" ] || { cp -r "$d" "$AGENTS_DIR/$n"; echo "Agent $n nach $AGENTS_DIR kopiert"; }
-  done
+  # Mitgelieferte Agenten ergänzen und unveränderte auf die neue Fassung bringen – eigene Änderungen bleiben erhalten
+  node "$(dirname "$0")/agents-sync.mjs" "$DEFAULTS_DIR/agents" "$AGENTS_DIR"
   [ -e "$SCHEDULE_FILE" ] || cp "$DEFAULTS_DIR/zeitplan.conf" "$SCHEDULE_FILE"
   echo "Add-on: Agenten in $AGENTS_DIR, Zeitplan $SCHEDULE_FILE"
 fi

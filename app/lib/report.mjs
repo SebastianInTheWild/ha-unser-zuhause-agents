@@ -34,10 +34,14 @@ export function readReport() {
   return errors.length ? { ok: false, errors } : { ok: true, report, file };
 }
 
-/** Legt ein Dashboard (nur Admins, in der Seitenleiste) bei Bedarf an und speichert seine Konfiguration. */
-export async function saveDashboard(call, { url, title, icon }, config) {
+/**
+ * Legt ein Dashboard (nur Admins, in der Seitenleiste) bei Bedarf an und speichert seine Konfiguration.
+ * create: false = nur aktualisieren; fehlt es (z. B. weil der Agent deaktiviert ist), passiert nichts.
+ */
+export async function saveDashboard(call, { url, title, icon }, config, { create = true } = {}) {
   const list = await call({ type: "lovelace/dashboards/list" });
   const created = !list.some((d) => d.url_path === url);
+  if (created && !create) return false;
   if (created) await call({ type: "lovelace/dashboards/create", url_path: url, title, icon, show_in_sidebar: true, require_admin: true, mode: "storage" });
   await call({ type: "lovelace/config/save", url_path: url, config });
   return created;

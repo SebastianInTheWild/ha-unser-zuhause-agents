@@ -20,18 +20,23 @@ KI-Agenten (Claude Code), die nach Zeitplan für Home Assistant arbeiten: Automa
 | `ha_token` | nur falls ein Aufruf über den Supervisor abgelehnt wird: eigener langlebiger Zugriffstoken |
 | `env` | weitere Variablen als `NAME=Wert`, z. B. `LOG_LEVELS=error,warning` oder `CONTROL=off` |
 
-## Weboberfläche „Agenten“
+## Weboberfläche „Unser Zuhause – Agents“
 
-Im Add-on unter *Info* **In Seitenleiste anzeigen** einschalten. Unter **Agenten** siehst du dann je Agent Status, nächsten und letzten Lauf und kannst
+Im Add-on unter *Info* **In Seitenleiste anzeigen** einschalten. Unter **Unser Zuhause – Agents** siehst du dann je Agent Status, nächsten und letzten Lauf und kannst
 
 - den Zeitplan einstellen: feste Zeiten, Wochentage, Abstände oder pausiert. Änderungen gelten nach spätestens 30 Sekunden, ohne Neustart.
 - mit **Jetzt starten** einen Agenten sofort laufen lassen. Er startet innerhalb von etwa 30 Sekunden, sobald kein anderer Agent läuft.
+- mit **Deaktivieren** einen Agenten ganz abschalten: Er läuft weder nach Zeitplan noch von Hand. Hat er ein eigenes Dashboard (Log-Detektiv, Automations-Doktor), entfernt das Add-on es aus Home Assistant; die Daten bleiben. **Aktivieren** holt den vorherigen Zeitplan und das Dashboard zurück.
+
+## Dashboards der Agenten
+
+Agenten mit eigenem Dashboard (in `agent.json` unter `dashboard`) bekommen es vom Add-on angelegt, sobald sie aktiv sind – auch vor ihrem ersten Lauf, dann mit den gemerkten Daten oder leer.
 
 ## Eigene Agenten
 
 Beim ersten Start legt das Add-on unter `/addon_configs/<slug>_unser_zuhause_agents/agents/` einen Ordner je Agent an (im File editor, über SSH oder Samba erreichbar). Neuer Agent: `_vorlage` kopieren, `prompt.md` und `agent.json` anpassen. Er erscheint ohne Neustart in der Weboberfläche.
 
-Mitgelieferte Agenten kopiert das Add-on nur, wenn es den Ordner noch nicht gibt. Deine Änderungen an Anweisungen bleiben also bei Updates erhalten. Willst du die neue Fassung eines mitgelieferten Agenten, lösche seinen Ordner und starte das Add-on neu. Einen Agenten abschalten: in der Weboberfläche pausieren statt den Ordner zu löschen, sonst kommt er beim nächsten Start wieder.
+Mitgelieferte Agenten bringt das Add-on bei Updates auf die neue Fassung – aber nur Dateien, die du nicht geändert hast. Deine Änderungen an Anweisungen bleiben erhalten (das Protokoll nennt sie). Willst du trotzdem die neue Fassung, lösche die Datei oder den Ordner und starte das Add-on neu. Einen Agenten abschalten: in der Weboberfläche **deaktivieren** statt den Ordner zu löschen, sonst kommt er beim nächsten Start wieder.
 
 Merklisten, Sicherungen und Logs liegen in den Add-on-Daten und sind in den HA-Backups enthalten (ohne die Tageslogs).
 

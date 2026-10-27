@@ -146,5 +146,11 @@ export async function logs(call, cmd, args) {
     const created = await saveDashboard(call, { url: DASHBOARD, title: "Log-Detektiv", icon: "mdi:text-search" }, config);
     return out({ ok: true, ...res, marked_seen: list.length, harmless: harmless.length, dashboard: `/${DASHBOARD}/bericht`, created });
   }
+  if (cmd === "dashboard") {
+    // Vom Add-on aufgerufen, wenn das Dashboard fehlt: aus den gemerkten Berichten neu anlegen
+    if (process.env.DRY === "1") return out({ ok: true, dry: true });
+    const created = await saveDashboard(call, { url: DASHBOARD, title: "Log-Detektiv", icon: "mdi:text-search" }, dashboardConfig(loadJson(stateFile(), { seen: {}, harmless: {} })));
+    return out({ ok: true, dashboard: `/${DASHBOARD}/bericht`, created });
+  }
   throw new Error(`Unbekannter Befehl: logs ${cmd}`);
 }

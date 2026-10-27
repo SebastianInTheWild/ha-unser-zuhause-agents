@@ -24,6 +24,7 @@ export const sensorId = (id) => `sensor.agent_${id.replace(/[^a-z0-9]+/gi, "_").
 
 /** Nächster Lauf als Text aus den Zeitplan-Einträgen („08:00“, „So 18:00“, „alle 5 min“). */
 export function nextRunText(agent, nowDate = new Date()) {
+  if (agent.disabled) return "deaktiviert";
   if (agent.enabled === false) return "nur von Hand";
   const slots = [].concat(agent.schedule || []);
   const every = slots.map((s) => /^alle\s+(\d+)\s*min$/i.exec(String(s).trim())).find(Boolean);
@@ -68,8 +69,9 @@ const RESULT = {
 /** Zustand eines Agenten für den Sensor. */
 export function agentState(agent, { status, lastRun, lastCheck, lastPush, queued }) {
   const last = lastRun || lastCheck;
-  const state = status?.running ? "läuft" : queued ? "wartet" : last ? RESULT[last.result]?.text || last.result : "noch nie gelaufen";
-  const icon = status?.running ? "mdi:play-circle" : queued ? "mdi:timer-sand" : RESULT[last?.result]?.icon || "mdi:robot-outline";
+  const off = agent.disabled && !status?.running;
+  const state = off ? "deaktiviert" : status?.running ? "läuft" : queued ? "wartet" : last ? RESULT[last.result]?.text || last.result : "noch nie gelaufen";
+  const icon = off ? "mdi:power-off" : status?.running ? "mdi:play-circle" : queued ? "mdi:timer-sand" : RESULT[last?.result]?.icon || "mdi:robot-outline";
   return {
     state,
     attributes: {
@@ -77,7 +79,8 @@ export function agentState(agent, { status, lastRun, lastCheck, lastPush, queued
       icon,
       agent_id: agent.id,
       description: agent.description || "",
-      schedule: agent.enabled === false ? "aus" : [].concat(agent.schedule || []).join(", ") || "keiner",
+      disabled: Boolean(agent.disabled),
+      schedule: agent.disabled ? "deaktiviert" : agent.enabled === false ? "aus" : [].concat(agent.schedule || []).join(", ") || "keiner",
       next_run: nextRunText(agent),
       running_since: status?.running ? fmt(status.since) : "",
       last_run: lastRun ? fmt(lastRun.at) : "",

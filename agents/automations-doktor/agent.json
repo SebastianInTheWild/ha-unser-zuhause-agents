@@ -6,6 +6,11 @@
   "schedule": [
     "Sa 09:00"
   ],
+  "dashboard": {
+    "url": "automations-doktor",
+    "title": "Automations-Doktor",
+    "create": "node ha.mjs automations dashboard"
+  },
   "allowedTools": [
     "Bash(node ha.mjs automations health)",
     "Bash(node ha.mjs automations report)",

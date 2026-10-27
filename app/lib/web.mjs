@@ -28,7 +28,8 @@ function readPlan() {
   return { lines, plan };
 }
 
-const slotsOf = (v) => (/^(aus|off|-)?$/i.test(v) ? [] : v.split(";").map((s) => s.trim()).filter(Boolean));
+const isDisabled = (v) => /^(deaktiviert|disabled)$/i.test(v || "");
+const slotsOf = (v) => (/^(aus|off|-)?$/i.test(v) || isDisabled(v) ? [] : v.split(";").map((s) => s.trim()).filter(Boolean));
 
 /** Prüft einen Eintrag; gibt die Fehlermeldung zurück oder null. */
 export function checkSlot(slot, { allowInterval = true } = {}) {
@@ -43,16 +44,23 @@ export function checkSlot(slot, { allowInterval = true } = {}) {
 }
 
 /** Schreibt den Eintrag für id (value = null → Zeile entfernen, d. h. Standard aus agent.json). */
-function writeEntry(id, value) {
+const lineRe = (id) => new RegExp(`^\\s*${id.replace(/[.-]/g, "\\$&")}\\s*[=:]`);
+
+// Beim Deaktivieren gemerkter Zeitplan („log-detektiv = deaktiviert   # vorher: 07:30“)
+function previousOf(id) {
+  const line = readPlan().lines.find((l) => lineRe(id).test(l)) || "";
+  return /#\s*vorher:\s*(.+)$/.exec(line)?.[1].trim() || null;
+}
+
+function writeEntry(id, value, { keepComment = true } = {}) {
   const { lines } = readPlan();
-  const re = new RegExp(`^\\s*${id.replace(/[.-]/g, "\\$&")}\\s*[=:]`);
-  const idx = lines.findIndex((l) => re.test(l));
+  const idx = lines.findIndex((l) => lineRe(id).test(l));
   const width = Math.max(18, ...lines.map((l) => (/^([\w.-]+)\s*=/.exec(l) || [, ""])[1].length));
   const line = `${id.padEnd(width)} = ${value}`;
   if (value === null) {
     if (idx >= 0) lines.splice(idx, 1);
   } else if (idx >= 0) {
-    const comment = /\s#.*$/.exec(lines[idx]);
+    const comment = keepComment ? /\s#.*$/.exec(lines[idx]) : null;
     lines[idx] = line + (comment ? `   ${comment[0].trim()}` : "");
   } else {
     while (lines.length && lines[lines.length - 1] === "") lines.pop();
@@ -90,6 +98,7 @@ function overview() {
     }
     const fromFile = id in plan;
     const schedule = fromFile ? slotsOf(plan[id]) : [].concat(a.schedule || []);
+    const disabled = fromFile && isDisabled(plan[id]);
     const enabled = fromFile ? schedule.length > 0 : a.enabled !== false;
     const status = readStatus(id, "status.json");
     const last = readStatus(id, "last-run.json");
@@ -101,9 +110,12 @@ function overview() {
       description: a.description || "",
       schedule,
       enabled,
+      disabled,
+      previous: disabled && previousOf(id) ? slotsOf(previousOf(id)) : null,
+      dashboard: a.dashboard?.url ? { url: a.dashboard.url, title: a.dashboard.title || a.name || id } : null,
       source: fromFile ? "zeitplan.conf" : "agent.json",
       default: { schedule: [].concat(a.schedule || []), enabled: a.enabled !== false },
-      next: nextRunText({ schedule, enabled }),
+      next: nextRunText({ schedule, enabled, disabled }),
       running: Boolean(status?.running),
       since: status?.since || null,
       last: last ? { at: last.at, result: last.result, by: last.by, note: last.note || "" } : null,
@@ -166,6 +178,14 @@ export function startWeb() {
           writeEntry(id, null);
         } else if (mode === "off") {
           writeEntry(id, "aus");
+        } else if (mode === "disable") {
+          // Bisherigen Eintrag merken, damit „Aktivieren“ ihn zurückholt
+          const { plan } = readPlan();
+          const prev = id in plan && !isDisabled(plan[id]) ? plan[id] || "aus" : null;
+          if (!isDisabled(plan[id])) writeEntry(id, prev ? `deaktiviert   # vorher: ${prev}` : "deaktiviert", { keepComment: false });
+        } else if (mode === "enable") {
+          const prev = previousOf(id);
+          writeEntry(id, prev, { keepComment: false });
         } else if (mode === "slots") {
           const list = [...new Set(slots.map((s) => String(s).trim()).filter(Boolean))];
           if (!list.length) return send(res, 400, { error: "Mindestens eine Zeit angeben – oder „Pausieren“ wählen" });
@@ -185,6 +205,7 @@ export function startWeb() {
         const id = run[1];
         if (!agentIds().includes(id)) return send(res, 404, { error: `Agent „${id}“ gibt es nicht` });
         if (loadAgent(id).manual === false) return send(res, 400, { error: "Dieser Agent startet nicht von Hand" });
+        if (isDisabled(readPlan().plan[id])) return send(res, 400, { error: "Dieser Agent ist deaktiviert – erst aktivieren" });
         if (!queued.includes(id) && !readStatus(id, "status.json")?.running) queued.push(id);
         console.log(`[web] ${id} von Hand angefordert`);
         return send(res, 200, overview());

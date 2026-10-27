@@ -18,7 +18,8 @@ const RUNS_FILE = join(DATA_DIR, "runs.json");
 const SCHEDULE_FILE = process.env.SCHEDULE_FILE || join(AGENTS_DIR, "..", "zeitplan.conf");
 
 // zeitplan.conf: eine Zeile je Agent, z. B. „log-detektiv = 07:30“, „energie-coach = So 18:00“,
-// mehrere Zeiten mit „;“ („automationen = 08:00; 20:00“), „alle 5 min“ = in Abständen, „aus“ pausiert. Hat Vorrang vor schedule/enabled in agent.json.
+// mehrere Zeiten mit „;“ („automationen = 08:00; 20:00“), „alle 5 min“ = in Abständen, „aus“ pausiert (nur noch von Hand),
+// „deaktiviert“ schaltet den Agenten ganz ab (kein Lauf, sein Dashboard verschwindet). Hat Vorrang vor schedule/enabled in agent.json.
 let warned = "";
 function loadSchedule() {
   if (!existsSync(SCHEDULE_FILE)) return {};
@@ -32,7 +33,8 @@ function loadSchedule() {
       const m = /^([\w.-]+)\s*[=:]\s*(.*)$/.exec(line);
       if (!m) return bad.push(`Zeile ${i + 1}: „${raw.trim()}“`);
       const v = m[2].trim();
-      out[m[1]] = /^(aus|off|-)?$/i.test(v) ? [] : v.split(";").map((s) => s.trim()).filter(Boolean);
+      // null = deaktiviert
+      out[m[1]] = /^(deaktiviert|disabled)$/i.test(v) ? null : /^(aus|off|-)?$/i.test(v) ? [] : v.split(";").map((s) => s.trim()).filter(Boolean);
     });
   const msg = bad.join(", ");
   if (msg && msg !== warned) console.error(`zeitplan.conf: nicht verstanden – ${msg} (Beispiel: log-detektiv = 07:30)`);
@@ -47,7 +49,8 @@ function agents() {
     .map((d) => {
       try {
         const a = loadAgent(d.name);
-        if (a.id in plan) Object.assign(a, { schedule: plan[a.id], enabled: plan[a.id].length > 0, fromFile: true });
+        if (plan[a.id] === null) Object.assign(a, { schedule: [], enabled: false, disabled: true, fromFile: true });
+        else if (a.id in plan) Object.assign(a, { schedule: plan[a.id], enabled: plan[a.id].length > 0, fromFile: true });
         return a;
       } catch (e) {
         console.error(`[${d.name}] agent.json fehlerhaft: ${e.message}`);
@@ -88,7 +91,7 @@ const due = (slot, n) => {
 
 const loadRuns = () => (existsSync(RUNS_FILE) ? JSON.parse(readFileSync(RUNS_FILE, "utf8")) : {});
 
-const summary = (list) => list.map((a) => `${a.id} ${a.enabled === false ? "aus" : [].concat(a.schedule || []).join("/") || "–"}`).join(", ") || "keine";
+const summary = (list) => list.map((a) => `${a.id} ${a.disabled ? "deaktiviert" : a.enabled === false ? "aus" : [].concat(a.schedule || []).join("/") || "–"}`).join(", ") || "keine";
 
 async function loop() {
   console.log(`Version ${process.env.ADDON_VERSION || "dev"} · Zeitplan läuft (TZ ${process.env.TZ || "UTC"}, Datei ${SCHEDULE_FILE}${existsSync(SCHEDULE_FILE) ? "" : " fehlt – Zeiten aus agent.json"})`);
@@ -142,7 +145,7 @@ async function loop() {
       }
       // Von Hand angeforderte Agenten (Knopf „Jetzt starten“ in der Weboberfläche), nacheinander
       for (let id = takeQueued(); id; id = takeQueued()) {
-        if (!list.some((a) => a.id === id)) continue;
+        if (!list.some((a) => a.id === id && !a.disabled)) continue;
         control?.refresh();
         await runAgent(id, { by: "von Hand" }).catch((e) => console.error(`[${id}] ${e.stack || e}`));
         control?.refresh();
@@ -172,7 +175,7 @@ async function loop() {
 
 const [cmd, id] = process.argv.slice(2);
 if (cmd === "list") {
-  for (const a of agents()) console.log(`${a.enabled === false ? "⏸" : "▶"} ${a.id} – ${a.name || ""} – ${[].concat(a.schedule || []).join(", ") || "ohne Zeitplan"}${a.fromFile ? " (zeitplan.conf)" : ""}`);
+  for (const a of agents()) console.log(`${a.disabled ? "⏹" : a.enabled === false ? "⏸" : "▶"} ${a.id} – ${a.name || ""} – ${a.disabled ? "deaktiviert" : [].concat(a.schedule || []).join(", ") || "ohne Zeitplan"}${a.fromFile ? " (zeitplan.conf)" : ""}`);
 } else if (cmd === "run") {
   if (!id) {
     console.error("Aufruf: run <agent-id>");

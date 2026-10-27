@@ -3,10 +3,16 @@
 // aber nur, solange niemand es in Home Assistant von Hand geändert hat. DASHBOARD=off schaltet es ab.
 // Autor: SebastianInTheWild · MIT-Lizenz
 
+import { exec } from "node:child_process";
 import { createHash } from "node:crypto";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import { connect } from "./ha.mjs";
 import { loadJson, saveDashboard, saveJson } from "./report.mjs";
+
+const APP = join(dirname(fileURLToPath(import.meta.url)), "..");
+const run = promisify(exec);
 
 const sensorId = (id) => `sensor.agent_${id.replace(/[^a-z0-9]+/gi, "_").toLowerCase()}`; // wie in control.mjs
 const DATA_DIR = process.env.DATA_DIR || "/data";
@@ -62,7 +68,9 @@ function lastPushMarkdown(sensors) {
 /** Konfiguration des Dashboards für die aktuelle Agentenliste. */
 export function buildDashboard(agents, panel = panelPath()) {
   const open = panel ? { tap_action: { action: "navigate", navigation_path: panel } } : {};
-  const list = [...agents].sort((x, y) => (x.name || x.id).localeCompare(y.name || y.id, "de"));
+  const sorted = [...agents].sort((x, y) => (x.name || x.id).localeCompare(y.name || y.id, "de"));
+  const list = sorted.filter((a) => !a.disabled);
+  const off = sorted.filter((a) => a.disabled);
   const sensors = list.map((a) => sensorId(a.id));
   const intro = [
     { type: "heading", heading: "Agenten", icon: "mdi:robot-outline" },
@@ -71,7 +79,8 @@ export function buildDashboard(agents, panel = panelPath()) {
       content:
         "Die KI-Agenten laufen in der App **Unser Zuhause – Agenten**. Starten, Zeitplan ändern oder pausieren geht dort" +
         (panel ? " – ein Tipp auf einen Agenten öffnet sie." : ".") +
-        " Diese Seite pflegt die App selbst; kommen Agenten dazu oder fallen weg, passt sie sich an.",
+        " Diese Seite pflegt die App selbst; kommen Agenten dazu oder fallen weg, passt sie sich an." +
+        (off.length ? `\n\n**Deaktiviert:** ${off.map((a) => a.name || a.id).join(", ")}` : ""),
     },
   ];
   if (panel) intro.push({ type: "button", name: "Starten & Zeitplan", icon: "mdi:play-circle-outline", show_state: false, icon_height: "28px", ...open, grid_options: { columns: "full", rows: 1 } });
@@ -92,7 +101,10 @@ export function buildDashboard(agents, panel = panelPath()) {
             cards: [
               { type: "heading", heading: a.name || a.id, icon: a.icon || "mdi:robot-outline", heading_style: "title", ...open },
               { type: "tile", entity: sensorId(a.id), name: "Status", vertical: false, ...open, grid_options: { columns: "full" } },
-              { type: "markdown", content: agentMarkdown(sensorId(a.id)) },
+              {
+                type: "markdown",
+                content: agentMarkdown(sensorId(a.id)) + (a.dashboard?.url ? `\n\n[📊 Dashboard „${a.dashboard.title || a.name || a.id}“ öffnen](/${a.dashboard.url})` : ""),
+              },
             ],
           })),
         ],
@@ -106,10 +118,13 @@ export function buildDashboard(agents, panel = panelPath()) {
  * (aktueller Stand ≠ zuletzt geschriebener), bleibt es, wie es ist. Fehlt es, legt die App es neu an.
  */
 export function startDashboard() {
-  if (/^(aus|off)$/i.test(process.env.DASHBOARD || "")) return { sync: async () => {} };
+  const overview = !/^(aus|off)$/i.test(process.env.DASHBOARD || "");
   let done = ""; // Hash der Konfiguration, die in diesem Prozess schon geprüft wurde
+  const agentDashboards = startAgentDashboards();
   return {
     async sync(agents) {
+      await agentDashboards(agents);
+      if (!overview) return;
       const config = buildDashboard(agents);
       const hash = hashConfig(config);
       if (hash === done) return;
@@ -136,5 +151,45 @@ export function startDashboard() {
         call.close();
       }
     },
+  };
+}
+
+/**
+ * Dashboards der Agenten (agent.json „dashboard“: {url, title, create}): Ist der Agent aktiv und fehlt sein Dashboard,
+ * legt die App es mit dem create-Befehl an (aus den gemerkten Daten). Ist er deaktiviert, entfernt sie es –
+ * die Daten bleiben im Datenordner, beim Aktivieren kommt es wieder. Geprüft bei jeder Änderung und nach dem Start.
+ */
+export function startAgentDashboards() {
+  let done = "";
+  let failedAt = 0;
+  return async (agents) => {
+    const wanted = agents.filter((a) => a.dashboard?.url).map((a) => ({ id: a.id, url: a.dashboard.url, title: a.dashboard.title || a.name || a.id, create: a.dashboard.create, active: !a.disabled }));
+    const key = JSON.stringify(wanted);
+    if (!wanted.length || key === done || Date.now() - failedAt < 5 * 60_000) return;
+    const call = await connect();
+    let ok = true;
+    try {
+      const existing = await call({ type: "lovelace/dashboards/list" });
+      for (const w of wanted) {
+        const found = existing.find((d) => d.url_path === w.url);
+        if (!w.active && found) {
+          await call({ type: "lovelace/dashboards/delete", dashboard_id: found.id });
+          console.log(`Dashboard „${w.title}“ (/${w.url}) entfernt – Agent ${w.id} ist deaktiviert`);
+        } else if (w.active && !found && w.create) {
+          try {
+            const env = { ...process.env, AGENT_DATA: join(DATA_DIR, w.id), AGENT_ID: w.id };
+            await run(w.create, { cwd: APP, env, timeout: 120_000 });
+            console.log(`Dashboard „${w.title}“ (/${w.url}) angelegt`);
+          } catch (e) {
+            ok = false;
+            console.error(`Dashboard „${w.title}“ anlegen fehlgeschlagen: ${(e.stderr || e.message).trim().slice(0, 300)}`);
+          }
+        }
+      }
+    } finally {
+      call.close();
+    }
+    if (ok) done = key;
+    else failedAt = Date.now();
   };
 }

@@ -32,18 +32,21 @@ Ein Home-Assistant-Add-on, in dem KI-Agenten (Claude Code) nach Zeitplan für Ho
 - Er bearbeitet nur **neue** Automationen. Beim ersten Start merkt er sich alle vorhandenen als erledigt.
 - Automationen mit dem Label **Test** (`SKIP_LABEL`) lässt er aus. Nimmst du das Label weg, kommt die Automation beim nächsten Lauf dran.
 - Seinen Plan schreibt er in `/data/automationen/plan.json`, die einzige Datei, die er schreiben darf. `apply` prüft ihn, bevor etwas geändert wird.
-- Er ändert nur Name, Beschreibung, Kategorie und Labels, **nie** Auslöser, Bedingungen oder Aktionen. Das Werkzeug prüft das vor und nach dem Speichern.
+- Er gibt jeder Automation ein passendes Icon. Schon sortierte Automationen ohne Icon bekommen beim nächsten Lauf eins nachgesetzt – nur das Icon, sonst bleibt alles.
+- Er ändert nur Name, Beschreibung, Kategorie, Labels und Icon, **nie** Auslöser, Bedingungen oder Aktionen. Das Werkzeug prüft das vor und nach dem Speichern.
 - Er nimmt bevorzugt Kategorien und Labels, die schon an deinen Automationen hängen. So bleibt alles einheitlich. Passt keine, legt er selbst eine neue Kategorie oder ein neues Label an, aber höchstens 2 pro Lauf (`MAX_NEW`). Das gilt nur für Themen, unter die weitere Automationen passen, und immer mit Icon und Beschreibung. Gibt es den Namen in HA schon, nutzt er den vorhandenen Eintrag. Der Push nennt, was neu angelegt wurde. Ist etwas unklar oder kaputt, vergibt er „Prüfen“.
 - Vorhandene Labels nimmt er nie weg.
 - Vor jeder Änderung sichert er den alten Stand (`/data/automationen/backups/`).
 - Gibt es nichts Neues, startet Claude gar nicht. Dann entstehen auch keine Kosten.
 
-### Weboberfläche „Agenten“
+### Weboberfläche „Unser Zuhause – Agents“
 
-Die Weboberfläche erscheint als **Agenten** in der Seitenleiste (im Add-on unter *Info* **In Seitenleiste anzeigen** einschalten, nur für Admins). Sie zeigt je Agent Status, Zeitplan, nächsten und letzten Lauf.
+Die Weboberfläche erscheint als **Unser Zuhause – Agents** in der Seitenleiste (im Add-on unter *Info* **In Seitenleiste anzeigen** einschalten, nur für Admins). Sie zeigt je Agent Status, Zeitplan, nächsten und letzten Lauf.
 
 - **Zeitplan:** feste Zeiten, Wochentage oder Abstände einstellen oder pausieren. Änderungen gelten nach spätestens 30 Sekunden, ohne Neustart. Eine neu eingetragene Zeit, die heute schon vorbei ist, gilt erst ab morgen. Verpasst das Add-on eine Uhrzeit, weil es aus war, holt es den Lauf am selben Tag nach.
-- **Jetzt starten:** reiht den Agenten ein (mit Rückfrage). Er startet innerhalb von etwa 30 Sekunden, sobald kein anderer Agent läuft. Die Vorprüfung gilt auch hier: Gibt es nichts zu tun, startet Claude nicht. Auch pausierte Agenten lassen sich so starten, Agenten mit `"manual": false` nicht.
+- **Jetzt starten:** reiht den Agenten ein (mit Rückfrage). Er startet innerhalb von etwa 30 Sekunden, sobald kein anderer Agent läuft. Die Vorprüfung gilt auch hier: Gibt es nichts zu tun, startet Claude nicht. Auch pausierte Agenten lassen sich so starten, Agenten mit `"manual": false` und deaktivierte nicht.
+- **Deaktivieren:** schaltet einen Agenten ganz ab (`zeitplan.conf`: `<id> = deaktiviert   # vorher: …`). Er läuft weder nach Zeitplan noch von Hand, sein Sensor zeigt „deaktiviert“, im Dashboard „Agenten“ steht er nur noch als Name. Hat er ein eigenes Dashboard (`agent.json` → `dashboard: {url, title, create}`, z. B. Log-Detektiv und Automations-Doktor), entfernt das Add-on es; die Daten bleiben. **Aktivieren** holt den vorherigen Zeitplan zurück, und das Add-on legt das Dashboard mit dem `create`-Befehl aus den gemerkten Daten neu an. Aktive Agenten mit Dashboard bekommen es so auch schon vor dem ersten Lauf.
+- **Updates der mitgelieferten Agenten:** Dateien, die du nicht geändert hast, bringt das Add-on beim Start auf die neue Fassung (`agents/.versionen.json` kennt alle früheren Fassungen). Geänderte bleiben und stehen im Protokoll. Vor einem Release `node app/agents-sync.mjs --update agents` ausführen; die CI prüft das.
 
 ### Status-Sensoren in Home Assistant
 

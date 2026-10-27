@@ -165,3 +165,45 @@ test("Dashboard: je Agent ein Abschnitt, Panel-Link, stabiler Hash", async () =>
   // Ohne Add-on kein Panel: keine Links
   assert.equal(buildDashboard(agents, "").views[0].sections[2].cards[0].tap_action, undefined);
 });
+
+test("Agenten abgleichen: neue kopieren, unveränderte aktualisieren, eigene behalten", async () => {
+  const { sync, hashOf } = await import("../app/agents-sync.mjs");
+  const { mkdtempSync, mkdirSync, writeFileSync, readFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const root = mkdtempSync(join(tmpdir(), "agents-"));
+  const src = join(root, "src"), dst = join(root, "dst");
+  for (const d of ["a", "b", "neu"]) mkdirSync(join(src, d), { recursive: true });
+  for (const d of ["a", "b"]) mkdirSync(join(dst, d), { recursive: true });
+  writeFileSync(join(dst, "a", "prompt.md"), "alt\n");
+  writeFileSync(join(dst, "b", "prompt.md"), "meins\n");
+  const alt = hashOf(join(dst, "a", "prompt.md"));
+  writeFileSync(join(src, "a", "prompt.md"), "neu\n");
+  writeFileSync(join(src, "a", "agent.json"), "{}\n");
+  writeFileSync(join(src, "b", "prompt.md"), "neu\n");
+  writeFileSync(join(src, "neu", "prompt.md"), "x\n");
+  writeFileSync(join(src, ".versionen.json"), JSON.stringify({ "a/prompt.md": [alt], "b/prompt.md": [alt] }));
+  const r = sync(src, dst, () => {});
+  assert.deepEqual(r.copied, ["neu"]);
+  assert.deepEqual(r.updated.sort(), ["a/agent.json", "a/prompt.md"]);
+  assert.deepEqual(r.kept, ["b/prompt.md"]);
+  assert.equal(readFileSync(join(dst, "a", "prompt.md"), "utf8"), "neu\n");
+  assert.equal(readFileSync(join(dst, "b", "prompt.md"), "utf8"), "meins\n");
+});
+
+test("Deaktiviert: Sensor und Dashboard", async () => {
+  const { agentState } = await import("../app/lib/control.mjs");
+  const { buildDashboard } = await import("../app/lib/dashboard.mjs");
+  const s = agentState({ id: "log-detektiv", name: "Log-Detektiv", schedule: [], enabled: false, disabled: true }, {});
+  assert.equal(s.state, "deaktiviert");
+  assert.equal(s.attributes.next_run, "deaktiviert");
+  assert.equal(s.attributes.disabled, true);
+  const c = buildDashboard([
+    { id: "log-detektiv", name: "Log-Detektiv", disabled: true, dashboard: { url: "log-detektiv" } },
+    { id: "automations-doktor", name: "Automations-Doktor", dashboard: { url: "automations-doktor", title: "Automations-Doktor" } },
+  ], "/p");
+  const sections = c.views[0].sections;
+  assert.equal(sections.length, 3);
+  assert.match(sections[0].cards[1].content, /\*\*Deaktiviert:\*\* Log-Detektiv/);
+  assert.match(sections[2].cards[2].content, /\(\/automations-doktor\)/);
+});

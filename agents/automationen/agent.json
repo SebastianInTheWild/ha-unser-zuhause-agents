@@ -1,6 +1,6 @@
 {
   "name": "Automationen sortieren",
-  "description": "Gibt neuen Automationen einen sprechenden Namen, eine Beschreibung, Labels und eine Kategorie.",
+  "description": "Gibt neuen Automationen einen sprechenden Namen, eine Beschreibung, Labels, eine Kategorie und ein passendes Icon; schon sortierte ohne Icon bekommen eins nachgesetzt.",
   "icon": "mdi:sort-variant",
   "enabled": true,
   "schedule": [

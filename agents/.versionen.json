@@ -1,0 +1,73 @@
+{
+ "_vorlage/agent.json": [
+  "a56ffad655c9a881"
+ ],
+ "_vorlage/prompt.md": [
+  "aa60673db0dbdc37"
+ ],
+ "automationen/agent.json": [
+  "84741289ed729b1d",
+  "6699820721c20b00"
+ ],
+ "automationen/prompt.md": [
+  "468ea0334b6f494b",
+  "5a66bf7577f37b2a"
+ ],
+ "automations-doktor/agent.json": [
+  "84623d03b76f2e55",
+  "de0609d11e83a36c"
+ ],
+ "automations-doktor/prompt.md": [
+  "0bc702a6c078c32d"
+ ],
+ "batterie-waechter/agent.json": [
+  "d3f391e28d13781b"
+ ],
+ "batterie-waechter/prompt.md": [
+  "a0216eabeb375941"
+ ],
+ "doktor-umsetzer/agent.json": [
+  "ec835f40f6111835"
+ ],
+ "doktor-umsetzer/prompt.md": [
+  "732773400277e6df"
+ ],
+ "energie-coach/agent.json": [
+  "0f92465f1d918933"
+ ],
+ "energie-coach/prompt.md": [
+  "06b42cbc8f3e2859"
+ ],
+ "geraete-waechter/agent.json": [
+  "89ef7bd92020fd13"
+ ],
+ "geraete-waechter/prompt.md": [
+  "7ae05a15a11fb18e"
+ ],
+ "log-detektiv/agent.json": [
+  "620a0263327fdd90",
+  "405081606576bbe9"
+ ],
+ "log-detektiv/prompt.md": [
+  "2da95ae2dc075a15"
+ ],
+ "rezept-qualitaet/agent.json": [
+  "a81071bf0418909b",
+  "cd40e0dfe1f9b63e"
+ ],
+ "rezept-qualitaet/prompt.md": [
+  "12fd63602c0b6512"
+ ],
+ "rezepte/agent.json": [
+  "6863715d229e6fc6"
+ ],
+ "rezepte/prompt.md": [
+  "04a1b4784315993d"
+ ],
+ "update-berater/agent.json": [
+  "bd6a49814d1e3a64"
+ ],
+ "update-berater/prompt.md": [
+  "22d3df8012afd2b3"
+ ]
+}

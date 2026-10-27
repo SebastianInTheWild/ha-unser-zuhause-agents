@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.0
+
+- **Agenten deaktivieren** in der Weboberfläche: läuft weder nach Zeitplan noch von Hand, Sensor zeigt „deaktiviert“; **Aktivieren** holt den vorherigen Zeitplan zurück
+- Agenten mit eigenem Dashboard (Log-Detektiv, Automations-Doktor) bekommen es vom Add-on angelegt, sobald sie aktiv sind; beim Deaktivieren wird es entfernt (die Daten bleiben)
+- **Automationen sortieren** vergibt jetzt auch ein passendes Icon und setzt es bei schon sortierten Automationen ohne Icon nach
+- Mitgelieferte Agenten werden bei Updates auf die neue Fassung gebracht, solange du ihre Dateien nicht geändert hast
+- Dashboard „Agenten“: deaktivierte Agenten nur noch als Name, Link zum Dashboard eines Agenten
+
 ## 1.4.1
 
 - Das Add-on legt das Dashboard **Agenten** (`/dashboard-agenten`) selbst an: je Agent ein Abschnitt mit Status, Zeitplan, letztem Lauf, letzter Push und Protokoll, oben die neueste Push aller Agenten; ein Tipp auf einen Agenten öffnet die Weboberfläche

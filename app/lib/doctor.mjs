@@ -171,9 +171,18 @@ export async function refreshDashboard(call) {
   const approved = new Set((await approvals(call, todo)).map((a) => a.fid));
   const config = dashboardConfig(report, report.checked || 0, store, approved, todo);
   if (process.env.DRY === "1") return config;
-  await saveDashboard(call, { url: DASHBOARD, title: "Automations-Doktor", icon: "mdi:stethoscope" }, config);
-  return true;
+  // Nur aktualisieren: Ist der Doktor deaktiviert (Dashboard entfernt), legt der Umsetzer es nicht wieder an
+  return saveDashboard(call, { url: DASHBOARD, title: "Automations-Doktor", icon: "mdi:stethoscope" }, config, { create: false }).then(() => true);
 }
+
+// Leeres Dashboard, solange es noch keinen Befund gibt
+const emptyDashboard = () => ({
+  title: "Automations-Doktor",
+  views: [{ title: "Befund", path: "befund", icon: "mdi:stethoscope", type: "sections", max_columns: 3, sections: [{ type: "grid", cards: [
+    { type: "heading", heading: "Übersicht", icon: "mdi:stethoscope" },
+    { type: "markdown", content: "## 🩺 Automations-Doktor\nNoch kein Befund – er erscheint hier nach dem nächsten Lauf." },
+  ] }] }],
+});
 
 export async function doctor(call, reg, cmd, args) {
   if (cmd === "health") {
@@ -241,6 +250,13 @@ export async function doctor(call, reg, cmd, args) {
     const created = await saveDashboard(call, { url: DASHBOARD, title: "Automations-Doktor", icon: "mdi:stethoscope" }, config);
     saveJson(lastReportFile(), full);
     return out({ ok: true, dashboard: `/${DASHBOARD}/befund`, created, findings: (report.findings || []).length, fixes: seen.size });
+  }
+  if (cmd === "dashboard") {
+    // Vom Add-on aufgerufen, wenn das Dashboard fehlt: aus dem letzten Befund oder leer anlegen
+    if (process.env.DRY === "1") return out({ ok: true, dry: true });
+    await saveDashboard(call, { url: DASHBOARD, title: "Automations-Doktor", icon: "mdi:stethoscope" }, emptyDashboard());
+    const filled = await refreshDashboard(call);
+    return out({ ok: true, dashboard: `/${DASHBOARD}/befund`, filled });
   }
   throw new Error(`Unbekannter Befehl: automations ${cmd}`);
 }

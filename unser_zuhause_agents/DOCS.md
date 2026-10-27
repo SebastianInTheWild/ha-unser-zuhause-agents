@@ -42,3 +42,7 @@ Merklisten, Sicherungen und Zeitplan aus einer bestehenden Installation: den Inh
 ## Status-Sensoren
 
 Je Agent schreibt das Add-on einen Sensor `sensor.agent_<id>` (läuft, wartet, erfolgreich, fehlgeschlagen, nichts zu tun) mit Zeitplan, nächstem und letztem Lauf und der letzten Push (`last_push`, `last_push_at`, `last_push_title`, `last_push_message`) als Attributen, z. B. für Automationen. `CONTROL=off` in `env` schaltet sie ab.
+
+## Dashboard „Agenten“
+
+Das Add-on legt das Dashboard **Agenten** (`/dashboard-agenten`, nur Admins) an: je Agent ein Abschnitt mit Status, Zeitplan, letztem Lauf, letzter Push und Protokoll, oben die neueste Push aller Agenten. Es passt sich an, wenn Agenten dazukommen oder wegfallen. Von Hand geänderte Dashboards überschreibt es nicht; gelöscht wird es neu angelegt. `DASHBOARD=off` in `env` schaltet es ab.

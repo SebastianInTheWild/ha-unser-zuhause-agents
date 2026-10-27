@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.1
+
+- Das Add-on legt das Dashboard **Agenten** (`/dashboard-agenten`) selbst an: je Agent ein Abschnitt mit Status, Zeitplan, letztem Lauf, letzter Push und Protokoll, oben die neueste Push aller Agenten; ein Tipp auf einen Agenten öffnet die Weboberfläche
+- Kommen Agenten dazu oder fallen weg, wird es neu geschrieben – außer es wurde in Home Assistant von Hand geändert; `DASHBOARD=off` schaltet es ab
+- Weboberfläche und Seitenleiste heißen jetzt **Unser Zuhause – Agents**
+
 ## 1.4.0
 
 - Die Status-Sensoren `sensor.agent_<id>` zeigen die letzte Push des Agenten: `last_push` (Zeit), `last_push_at` (ISO, zum Sortieren), `last_push_title` und `last_push_message`

@@ -1,7 +1,7 @@
 # Home-Assistant-Add-on „Unser Zuhause – Agenten“. Das Image baut .github/workflows/addon.yml aus Dockerfile.
 # Neue Version: „version“ erhöhen und nach main pushen – der Workflow baut das Image mit diesem Tag.
 name: Unser Zuhause – Agenten
-version: "1.4.0"
+version: "1.4.1"
 slug: unser_zuhause_agents
 description: KI-Agenten (Claude Code), die nach Zeitplan für Home Assistant arbeiten
 url: https://github.com/SebastianInTheWild/ha-unser-zuhause-agents
@@ -18,7 +18,7 @@ homeassistant_api: true
 ingress: true
 ingress_port: 8080
 panel_icon: mdi:robot-outline
-panel_title: Agenten
+panel_title: Unser Zuhause – Agents
 # Agenten liegen unter /addon_configs/<slug>/ (File editor, SSH, Samba); den Zeitplan pflegt die Weboberfläche
 map:
   - type: addon_config

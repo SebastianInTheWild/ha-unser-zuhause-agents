@@ -146,3 +146,22 @@ test("Status-Sensor: letzte Push", async () => {
   assert.equal(leer.attributes.last_push, "");
   assert.equal(leer.attributes.last_push_message, "");
 });
+
+test("Dashboard: je Agent ein Abschnitt, Panel-Link, stabiler Hash", async () => {
+  const { buildDashboard, hashConfig } = await import("../app/lib/dashboard.mjs");
+  const agents = [
+    { id: "log-detektiv", name: "Log-Detektiv", icon: "mdi:text-search" },
+    { id: "automationen", name: "Automationen sortieren" },
+  ];
+  const c = buildDashboard(agents, "/abc_unser_zuhause_agents");
+  const sections = c.views[0].sections;
+  assert.equal(sections.length, 4);
+  assert.equal(sections[2].cards[0].heading, "Automationen sortieren");
+  assert.equal(sections[3].cards[1].entity, "sensor.agent_log_detektiv");
+  assert.equal(sections[3].cards[0].tap_action.navigation_path, "/abc_unser_zuhause_agents");
+  assert.match(sections[1].cards[1].content, /expand\(\['sensor\.agent_automationen', 'sensor\.agent_log_detektiv'\]\)|expand\(\['sensor\.agent_automationen','sensor\.agent_log_detektiv'\]\)/);
+  assert.equal(hashConfig(c), hashConfig(JSON.parse(JSON.stringify(c))));
+  assert.notEqual(hashConfig(c), hashConfig(buildDashboard(agents.slice(0, 1), "/abc_unser_zuhause_agents")));
+  // Ohne Add-on kein Panel: keine Links
+  assert.equal(buildDashboard(agents, "").views[0].sections[2].cards[0].tap_action, undefined);
+});

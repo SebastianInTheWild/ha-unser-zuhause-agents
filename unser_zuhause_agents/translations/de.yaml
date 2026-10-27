@@ -19,4 +19,4 @@ configuration:
     description: Nur nötig, wenn ein Zugriff über den Supervisor abgelehnt wird. Langlebiger Zugriffstoken aus deinem Profil.
   env:
     name: Weitere Einstellungen
-    description: Zusätzliche Variablen als NAME=Wert, z. B. DRY=1 (nur anzeigen, nichts ändern) oder CONTROL=off (keine Status-Sensoren).
+    description: Zusätzliche Variablen als NAME=Wert, z. B. DRY=1 (nur anzeigen, nichts ändern) oder CONTROL=off (keine Status-Sensoren), DASHBOARD=off (kein Dashboard „Agenten“).

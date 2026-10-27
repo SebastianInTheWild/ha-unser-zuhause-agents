@@ -10,6 +10,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { AGENTS_DIR, clearRunning, loadAgent, readStatus, runAgent } from "./run-agent.mjs";
 import { startControl } from "./lib/control.mjs";
+import { startDashboard } from "./lib/dashboard.mjs";
 import { isQueued, startWeb, takeQueued } from "./lib/web.mjs";
 
 const DATA_DIR = process.env.DATA_DIR || "/data";
@@ -150,9 +151,9 @@ async function loop() {
       busy = false;
     }
   };
-  // Läuft-Markierungen eines abgebrochenen Laufs entfernen; Status-Sensoren in HA (CONTROL=off schaltet sie ab)
+  // Läuft-Markierungen eines abgebrochenen Laufs entfernen; Status-Sensoren und Dashboard „Agenten“ in HA (CONTROL=off bzw. DASHBOARD=off schaltet sie ab)
   clearRunning(agents().map((a) => a.id));
-  const control = process.env.CONTROL === "off" || !process.env.HA_TOKEN ? null : startControl({ agents, readStatus, isQueued });
+  const control = process.env.CONTROL === "off" || !process.env.HA_TOKEN ? null : startControl({ agents, readStatus, isQueued, dashboard: startDashboard() });
   // Weboberfläche „Zeitplan“ (WEB_PORT, Standard 8080; „aus“ = keine)
   startWeb();
   // Beim ersten Start keine alten Zeiten von heute nachholen

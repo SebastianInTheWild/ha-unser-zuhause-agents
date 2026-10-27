@@ -98,9 +98,9 @@ export function agentState(agent, { status, lastRun, lastCheck, lastPush, queued
 
 /**
  * Sensoren pflegen. agents(): aktuelle Agentenliste (wie im Scheduler), readStatus(id, datei): Statusdateien,
- * isQueued(id): von Hand angefordert, noch nicht gestartet. Gibt { refresh() } zurück.
+ * isQueued(id): von Hand angefordert, noch nicht gestartet, dashboard: startDashboard() oder nichts. Gibt { refresh() } zurück.
  */
-export function startControl({ agents, readStatus, isQueued }) {
+export function startControl({ agents, readStatus, isQueued, dashboard }) {
   let lastPublished = {};
   let lastFull = 0;
   let busy = false;
@@ -128,7 +128,10 @@ export function startControl({ agents, readStatus, isQueued }) {
     if (busy) return;
     busy = true;
     try {
-      await publish(agents());
+      const list = agents();
+      await publish(list);
+      // Dashboard „Agenten“ nach den Sensoren, damit es keine fehlenden Entitäten zeigt
+      await dashboard?.sync(list);
       warned = "";
     } catch (e) {
       // HA nicht erreichbar o. Ä.: Zeitplan läuft weiter, Meldung nur einmal

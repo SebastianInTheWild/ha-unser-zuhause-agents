@@ -50,9 +50,13 @@ Die Weboberfläche erscheint als **Agenten** in der Seitenleiste (im Add-on unte
 Je Agent schreibt das Add-on einen Sensor `sensor.agent_<id>` nach Home Assistant, z. B. für Automationen („Log-Detektiv fehlgeschlagen → Push“) oder eigene Dashboards:
 
 - **Zustand:** läuft, wartet, erfolgreich, fehlgeschlagen, nichts zu tun, noch nie gelaufen
-- **Attribute:** `schedule`, `next_run`, `running_since`, `last_run`, `last_result`, `last_by` (Zeitplan oder von Hand), `last_note`, `last_duration`, `last_check`, `log` (letzte Protokollzeilen)
+- **Attribute:** `schedule`, `next_run`, `running_since`, `last_run`, `last_result`, `last_by` (Zeitplan oder von Hand), `last_note`, `last_duration`, `last_check`, `last_push`, `last_push_at`, `last_push_title`, `last_push_message` (letzte Push), `log` (letzte Protokollzeilen)
 
 Die Sensoren sind nicht im Entitätenregister, sie verschwinden bei einem HA-Neustart kurz und werden innerhalb von 15 Sekunden neu geschrieben. In der Option `env` schaltet `CONTROL=off` sie ab.
+
+### Dashboard „Agenten“
+
+Aus den Sensoren baut das Add-on das Dashboard **Agenten** (`/dashboard-agenten`, nur für Admins): je Agent ein Abschnitt mit Status, Zeitplan, letztem Lauf, letzter Push und Protokoll, oben die neueste Push aller Agenten. Ein Tipp auf einen Agenten öffnet die Weboberfläche. Kommen Agenten dazu oder fallen weg, schreibt das Add-on das Dashboard neu – aber nur, solange es niemand in Home Assistant von Hand geändert hat. Wer es löscht, bekommt es frisch angelegt. `DASHBOARD=off` in `env` schaltet es ab.
 
 ## Voraussetzungen
 
@@ -111,6 +115,7 @@ Im Tab *Konfiguration*, mit Erklärung auf Deutsch und Englisch:
 | `UPDATE_NOTES_MAX` | `6000` | Update-Berater: Zeichen Release Notes je Update in der Übersicht |
 | `CONTROL` | an | `off` = keine Status-Sensoren |
 | `CONTROL_PREFIX` | `Agent` | Namensanfang der Status-Sensoren |
+| `DASHBOARD` | an | `off` = kein Dashboard „Agenten“ |
 
 Der Energie-Coach liest zusätzlich die Laufzeiten von Geräten ohne eigenen Zähler. Welche das sind, steht als `ENERGY_ACTIVITY` in seiner `agent.json`.
 

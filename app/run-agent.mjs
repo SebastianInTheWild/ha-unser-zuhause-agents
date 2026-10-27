@@ -6,6 +6,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileS
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { connect, notify } from "./lib/ha.mjs";
+import { now } from "./lib/logtime.mjs";
 
 const APP = dirname(fileURLToPath(import.meta.url));
 export const AGENTS_DIR = process.env.AGENTS_DIR || join(APP, "..", "agents");
@@ -64,9 +65,9 @@ async function run(id, quiet, by) {
   mkdirSync(join(data, "logs"), { recursive: true });
   const logFile = join(data, "logs", `${new Date().toISOString().slice(0, 10)}.log`);
   const log = (line) => {
-    const msg = `[${new Date().toLocaleString("de-DE")}] [${id}] ${line}`;
-    console.log(msg);
-    appendFileSync(logFile, msg + "\n");
+    // Im Protokoll des Add-ons setzt stampConsole den Zeitstempel; die Logdatei bekommt ihn selbst
+    console.log(console.stamped ? `[${id}] ${line}` : `[${now()}] [${id}] ${line}`);
+    appendFileSync(logFile, `[${now()}] [${id}] ${line}\n`);
   };
   const env = { ...process.env, ...(agent.env || {}), AGENT_DATA: data, AGENT_ID: id };
 

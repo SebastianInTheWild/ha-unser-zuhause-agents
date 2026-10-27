@@ -11,6 +11,7 @@ import { join } from "node:path";
 import { AGENTS_DIR, clearRunning, loadAgent, readStatus, runAgent } from "./run-agent.mjs";
 import { startControl } from "./lib/control.mjs";
 import { startDashboard } from "./lib/dashboard.mjs";
+import { stampConsole } from "./lib/logtime.mjs";
 import { isQueued, startWeb, takeQueued } from "./lib/web.mjs";
 
 const DATA_DIR = process.env.DATA_DIR || "/data";
@@ -183,5 +184,7 @@ if (cmd === "list") {
   }
   process.exit((await runAgent(id)) || 0);
 } else {
+  // Dauerbetrieb: jede Zeile im Protokoll mit Zeitstempel
+  stampConsole();
   await loop();
 }

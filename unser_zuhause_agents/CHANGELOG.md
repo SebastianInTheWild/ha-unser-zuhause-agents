@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.1
+
+- **Automationen sortieren** setzt jetzt den Bereich, in dem eine Automation wirkt (oder keinen, wenn sie mehrere Räume betrifft); der Raum steht dann nicht mehr im Namen
+- Schon sortierte Automationen bekommen Icon und Bereich einmal nachgepflegt, ein Raum vorne im Namen wandert dabei in den Bereich – Beschreibung, Kategorie und Labels bleiben
+- Jede Zeile im Protokoll des Add-ons hat einen Zeitstempel; der Abgleich der Agenten meldet sich immer mit einer Zusammenfassung
+
 ## 1.5.0
 
 - **Agenten deaktivieren** in der Weboberfläche: läuft weder nach Zeitplan noch von Hand, Sensor zeigt „deaktiviert“; **Aktivieren** holt den vorherigen Zeitplan zurück

@@ -12,6 +12,7 @@
 import { createHash } from "node:crypto";
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { stampConsole } from "./lib/logtime.mjs";
 
 const VERSIONS = ".versionen.json";
 // Zeilenenden egal (Windows-Editoren)
@@ -88,7 +89,10 @@ function main() {
     console.error("node agents-sync.mjs <mitgeliefert> <ziel> | --update <agents> | --check <agents>");
     process.exit(2);
   }
-  sync(a, b);
+  stampConsole();
+  const r = sync(a, b);
+  // Immer eine Zeile, damit im Protokoll sichtbar ist, dass der Abgleich lief
+  console.log(`Agenten abgeglichen: ${r.copied.length} neu, ${r.updated.length} aktualisiert, ${r.kept.length} von Hand geändert`);
 }
 
 if (process.argv[1]?.endsWith("agents-sync.mjs")) main();

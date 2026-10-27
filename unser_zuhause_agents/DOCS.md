@@ -41,4 +41,4 @@ Merklisten, Sicherungen und Zeitplan aus einer bestehenden Installation: den Inh
 
 ## Status-Sensoren
 
-Je Agent schreibt das Add-on einen Sensor `sensor.agent_<id>` (läuft, wartet, erfolgreich, fehlgeschlagen, nichts zu tun) mit Zeitplan, nächstem und letztem Lauf als Attributen, z. B. für Automationen. `CONTROL=off` in `env` schaltet sie ab.
+Je Agent schreibt das Add-on einen Sensor `sensor.agent_<id>` (läuft, wartet, erfolgreich, fehlgeschlagen, nichts zu tun) mit Zeitplan, nächstem und letztem Lauf und der letzten Push (`last_push`, `last_push_at`, `last_push_title`, `last_push_message`) als Attributen, z. B. für Automationen. `CONTROL=off` in `env` schaltet sie ab.

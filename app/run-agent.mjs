@@ -114,7 +114,7 @@ async function run(id, quiet, by) {
   if (code !== 0) {
     const call = await connect().catch(() => null);
     if (call) {
-      await notify(call, `⚠️ Agent „${agent.name || id}“`, `Der Lauf ist fehlgeschlagen (Code ${code}). Details im Log ${logFile}.`).catch(() => {});
+      await notify(call, `⚠️ Agent „${agent.name || id}“`, `Der Lauf ist fehlgeschlagen (Code ${code}). Details im Log ${logFile}.`, data).catch(() => {});
       call.close();
     }
   }

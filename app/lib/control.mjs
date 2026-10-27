@@ -1,5 +1,5 @@
 // Status-Sensoren in Home Assistant: je Agent sensor.agent_<id> mit Zustand (läuft, wartet, erfolgreich …),
-// Zeitplan, nächstem und letztem Lauf und den letzten Protokollzeilen – z. B. für Automationen oder eigene Dashboards.
+// Zeitplan, nächstem und letztem Lauf, der letzten Push und den letzten Protokollzeilen – z. B. für Automationen oder eigene Dashboards.
 // Gestartet wird über die Weboberfläche („Jetzt starten“). Läuft im Scheduler neben dem Zeitplan.
 // Autor: SebastianInTheWild · MIT-Lizenz
 
@@ -66,7 +66,7 @@ const RESULT = {
 };
 
 /** Zustand eines Agenten für den Sensor. */
-export function agentState(agent, { status, lastRun, lastCheck, queued }) {
+export function agentState(agent, { status, lastRun, lastCheck, lastPush, queued }) {
   const last = lastRun || lastCheck;
   const state = status?.running ? "läuft" : queued ? "wartet" : last ? RESULT[last.result]?.text || last.result : "noch nie gelaufen";
   const icon = status?.running ? "mdi:play-circle" : queued ? "mdi:timer-sand" : RESULT[last?.result]?.icon || "mdi:robot-outline";
@@ -86,6 +86,11 @@ export function agentState(agent, { status, lastRun, lastCheck, queued }) {
       last_note: lastRun?.note || "",
       last_duration: lastRun ? duration(lastRun.duration_s) : "",
       last_check: lastCheck ? fmt(lastCheck.at) : "",
+      // Letzte Push dieses Agenten; last_push_at (ISO) zum Sortieren über alle Agenten
+      last_push: lastPush ? fmt(lastPush.at) : "",
+      last_push_at: lastPush?.at || "",
+      last_push_title: lastPush?.title || "",
+      last_push_message: String(lastPush?.message || "").slice(0, 1500),
       log: logTail(agent.id),
     },
   };
@@ -108,6 +113,7 @@ export function startControl({ agents, readStatus, isQueued }) {
         status: readStatus(a.id, "status.json"),
         lastRun: readStatus(a.id, "last-run.json"),
         lastCheck: readStatus(a.id, "last-check.json"),
+        lastPush: readStatus(a.id, "last-push.json"),
         queued: isQueued(a.id),
       });
       const key = JSON.stringify(s);

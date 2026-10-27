@@ -133,3 +133,16 @@ test("Updates: offen, übersprungen, schon beraten", () => {
   assert.deepEqual(list.map((u) => [u.entity_id, u.new]), [["update.core", true], ["update.fw", false]]);
   assert.equal(list[0].kind, "Home Assistant / Add-on");
 });
+
+test("Status-Sensor: letzte Push", async () => {
+  const { agentState } = await import("../app/lib/control.mjs");
+  const agent = { id: "log-detektiv", name: "Log-Detektiv", schedule: "07:30" };
+  const s = agentState(agent, { lastPush: { at: "2026-10-27T08:15:00Z", title: "🔎 2 neue Fehler", message: "x".repeat(2000) } });
+  assert.equal(s.attributes.last_push, "Di 27.10. 09:15");
+  assert.equal(s.attributes.last_push_at, "2026-10-27T08:15:00Z");
+  assert.equal(s.attributes.last_push_title, "🔎 2 neue Fehler");
+  assert.equal(s.attributes.last_push_message.length, 1500);
+  const leer = agentState(agent, {});
+  assert.equal(leer.attributes.last_push, "");
+  assert.equal(leer.attributes.last_push_message, "");
+});

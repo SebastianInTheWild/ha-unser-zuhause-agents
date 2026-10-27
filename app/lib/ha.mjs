@@ -1,6 +1,9 @@
 // Kleiner Home-Assistant-Client (REST + WebSocket) ohne Abhängigkeiten. Braucht Node 22+ (globales WebSocket).
 // Autor: SebastianInTheWild · MIT-Lizenz
 
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
+
 const HA_URL = (process.env.HA_URL || "").replace(/\/$/, "");
 const HA_TOKEN = process.env.HA_TOKEN || "";
 
@@ -52,8 +55,12 @@ export async function connect() {
   return call;
 }
 
-/** Push über die Integration „Unser Zuhause“ an Personen (NOTIFY_PERSONS, kommagetrennt). */
-export async function notify(call, title, message) {
+/**
+ * Push über die Integration „Unser Zuhause“ an Personen (NOTIFY_PERSONS, kommagetrennt).
+ * Merkt sich die Nachricht in <Datenordner des Agenten>/last-push.json (für den Status-Sensor);
+ * dataDir nur angeben, wenn der Aufruf nicht aus einem Agentenlauf kommt (dort ist AGENT_DATA gesetzt).
+ */
+export async function notify(call, title, message, dataDir = process.env.AGENT_DATA) {
   const persons = (process.env.NOTIFY_PERSONS || "").split(",").map((s) => s.trim()).filter(Boolean);
   if (!persons.length) return;
   await call({
@@ -62,4 +69,11 @@ export async function notify(call, title, message) {
     service: "notify",
     service_data: { persons, title, message },
   });
+  if (dataDir) {
+    try {
+      writeFileSync(join(dataDir, "last-push.json"), JSON.stringify({ at: new Date().toISOString(), title, message, persons }, null, 2));
+    } catch (e) {
+      console.error(`Letzte Push nicht gespeichert: ${e.message}`);
+    }
+  }
 }

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.0
+
+- Die Status-Sensoren `sensor.agent_<id>` zeigen die letzte Push des Agenten: `last_push` (Zeit), `last_push_at` (ISO, zum Sortieren), `last_push_title` und `last_push_message`
+- Gespeichert in `last-push.json` im Datenordner des Agenten, auch Pushs bei fehlgeschlagenen Läufen
+
 ## 1.3.0
 
 - Neuer Agent **Batterie-Wächter** (So 10:00): meldet bald leere Batterien mit Raum, Prognose und Batterietyp und setzt die Batterien auf die Einkaufsliste

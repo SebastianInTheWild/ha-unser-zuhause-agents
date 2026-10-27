@@ -32,8 +32,8 @@ Ein Home-Assistant-Add-on, in dem KI-Agenten (Claude Code) nach Zeitplan für Ho
 - Er bearbeitet nur **neue** Automationen. Beim ersten Start merkt er sich alle vorhandenen als erledigt.
 - Automationen mit dem Label **Test** (`SKIP_LABEL`) lässt er aus. Nimmst du das Label weg, kommt die Automation beim nächsten Lauf dran.
 - Seinen Plan schreibt er in `/data/automationen/plan.json`, die einzige Datei, die er schreiben darf. `apply` prüft ihn, bevor etwas geändert wird.
-- Er gibt jeder Automation ein passendes Icon. Schon sortierte Automationen ohne Icon bekommen beim nächsten Lauf eins nachgesetzt – nur das Icon, sonst bleibt alles.
-- Er ändert nur Name, Beschreibung, Kategorie, Labels und Icon, **nie** Auslöser, Bedingungen oder Aktionen. Das Werkzeug prüft das vor und nach dem Speichern.
+- Er gibt jeder Automation ein passendes Icon und setzt den Bereich, in dem sie wirkt (oder keinen, wenn sie mehrere Räume betrifft). Der Raum steht dann nicht mehr im Namen. Schon sortierte Automationen bekommen Icon und Bereich einmal nachgepflegt; dabei wandert ein Raum vorne im Namen in den Bereich – Beschreibung, Kategorie und Labels bleiben.
+- Er ändert nur Name, Beschreibung, Kategorie, Labels, Icon und Bereich, **nie** Auslöser, Bedingungen oder Aktionen. Das Werkzeug prüft das vor und nach dem Speichern.
 - Er nimmt bevorzugt Kategorien und Labels, die schon an deinen Automationen hängen. So bleibt alles einheitlich. Passt keine, legt er selbst eine neue Kategorie oder ein neues Label an, aber höchstens 2 pro Lauf (`MAX_NEW`). Das gilt nur für Themen, unter die weitere Automationen passen, und immer mit Icon und Beschreibung. Gibt es den Namen in HA schon, nutzt er den vorhandenen Eintrag. Der Push nennt, was neu angelegt wurde. Ist etwas unklar oder kaputt, vergibt er „Prüfen“.
 - Vorhandene Labels nimmt er nie weg.
 - Vor jeder Änderung sichert er den alten Stand (`/data/automationen/backups/`).
